@@ -37,8 +37,14 @@ bondora-analytics/
 ├── src/
 │   ├── __init__.py
 │   ├── config.py
-│   ├── data/__init__.py
-│   ├── features/__init__.py
+│   ├── data/
+│   │   ├── __init__.py
+│   │   ├── loader.py
+│   │   ├── targets.py
+│   │   └── build_clean.py
+│   ├── features/
+│   │   ├── __init__.py
+│   │   └── basic.py
 │   ├── models/__init__.py
 │   └── utils/__init__.py
 ├── models/             # model tersimpan (tidak di-commit)
@@ -103,7 +109,7 @@ Pastikan output diakhiri dengan `STATUS: OK` dan `pip check` tidak melaporkan ko
 
 ---
 
-## 4. Instruksi Penempatan Dataset
+## 4. Instruksi Penempatan Dataset & Pembuatan Data Bersih
 
 Dataset **tidak disertakan di dalam repositori Git**. Silakan unduh dataset Bondora secara manual dan simpan ke dalam folder:
 
@@ -113,6 +119,12 @@ data/raw/
 
 Lihat panduan lengkap, daftar file yang dibutuhkan (`LoanData.csv` dan opsional `RepaymentsData.csv`), serta tabel pencatatan metadata unduhan pada dokumen [`data/README.md`](data/README.md).
 
+Untuk menjalankan seluruh alur pembersihan data Tahap 1 dan menghasilkan `data/processed/bondora_clean.parquet` beserta `data/processed/schema.json`, jalankan perintah satu baris berikut:
+
+```bash
+python -m src.data.build_clean
+```
+
 ---
 
 ## 5. Status Tahap Pengerjaan Proyek
@@ -120,7 +132,7 @@ Lihat panduan lengkap, daftar file yang dibutuhkan (`LoanData.csv` dan opsional 
 | Tahap | Nama Tahap | Fokus Utama & Deliverables | Status |
 | :---: | :--- | :--- | :---: |
 | **Tahap 0** | Persiapan Proyek & Environment | Struktur repo, `.venv`, instalasi paket, konfigurasi, template notebook & dokumen | **Selesai** |
-| **Tahap 1** | Data Understanding & Preprocessing | Eksplorasi skema, pembersihan data, penanganan *missing values* & *data leakage* (`01_data_understanding.ipynb`) | Belum |
+| **Tahap 1** | Data Understanding & Preprocessing | Eksplorasi skema, pembersihan data, penanganan *missing values* & *data leakage* (`01_data_understanding.ipynb`) | **Selesai** |
 | **Tahap 2** | Descriptive Analytics | Statistik deskriptif & visualisasi distribusi portofolio (`02_descriptive.ipynb`) | Belum |
 | **Tahap 3** | Diagnostic Analytics | Uji hipotesis, analisis korelasi, dan faktor penyebab *default* (`03_diagnostic.ipynb`) | Belum |
 | **Tahap 4** | Predictive Analytics | Pemodelan klasifikasi *default* & regresi beserta evaluasi SHAP (`04_*.ipynb`, `05_*.ipynb`) | Belum |

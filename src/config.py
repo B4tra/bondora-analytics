@@ -24,10 +24,42 @@ NOTEBOOKS_DIR: Path = PROJECT_ROOT / "notebooks"
 # Reproducibility seed
 RANDOM_SEED: int = 42
 
+# Dataset snapshot report date (from ReportAsOfEOD)
+REPORT_DATE: str = "2021-07-20"
+
 # Raw dataset filenames
 # TODO: konfirmasi nama file sesuai unduhan pengguna
 LOANDATA_FILENAME: str = "LoanData.csv"
 REPAYMENTS_FILENAME: str = "RepaymentsData.csv"
+
+# Core column names and status values for target definitions (Gate 1 & Gate 2 decisions)
+STATUS_COL: str = "Status"
+DEFAULT_DATE_COL: str = "DefaultDate"
+LOAN_DATE_COL: str = "LoanDate"
+AMOUNT_COL: str = "Amount"
+APPLIED_AMOUNT_COL: str = "AppliedAmount"
+PRINCIPAL_PAYMENTS_COL: str = "PrincipalPaymentsMade"
+INTEREST_PENALTY_PAYMENTS_COL: str = "InterestAndPenaltyPaymentsMade"
+PRINCIPAL_WRITEOFFS_COL: str = "PrincipalWriteOffs"
+INTEREST_PENALTY_WRITEOFFS_COL: str = "InterestAndPenaltyWriteOffs"
+
+STATUS_REPAID: str = "Repaid"
+STATUS_CURRENT: str = "Current"
+STATUS_LATE: str = "Late"
+
+# Output target column names
+DEFAULT_TARGET_COL: str = "default"
+REGRESSION_TARGET_COL: str = "return_ratio"
+IS_RESOLVED_COL: str = "is_resolved"
+
+# Columns dropped from bondora_clean.parquet (4 columns 100% missing + 1 constant snapshot column)
+DROPPED_COLUMNS: list[str] = [
+    "City",
+    "County",
+    "DateOfBirth",
+    "EmploymentPosition",
+    "ReportAsOfEOD",
+]
 
 
 def ensure_dirs() -> None:
