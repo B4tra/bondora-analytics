@@ -37,6 +37,9 @@ bondora-analytics/
 ├── src/
 │   ├── __init__.py
 │   ├── config.py
+│   ├── analysis/
+│   │   ├── __init__.py
+│   │   └── descriptive.py
 │   ├── data/
 │   │   ├── __init__.py
 │   │   ├── loader.py
@@ -46,7 +49,9 @@ bondora-analytics/
 │   │   ├── __init__.py
 │   │   └── basic.py
 │   ├── models/__init__.py
-│   └── utils/__init__.py
+│   └── utils/
+│       ├── __init__.py
+│       └── plotting.py
 ├── models/             # model tersimpan (tidak di-commit)
 ├── dashboard/          # aplikasi Streamlit (tahap 7)
 ├── ontology/           # file ontologi & query SPARQL (tahap 6)
@@ -133,10 +138,51 @@ python -m src.data.build_clean
 | :---: | :--- | :--- | :---: |
 | **Tahap 0** | Persiapan Proyek & Environment | Struktur repo, `.venv`, instalasi paket, konfigurasi, template notebook & dokumen | **Selesai** |
 | **Tahap 1** | Data Understanding & Preprocessing | Eksplorasi skema, pembersihan data, penanganan *missing values* & *data leakage* (`01_data_understanding.ipynb`) | **Selesai** |
-| **Tahap 2** | Descriptive Analytics | Statistik deskriptif & visualisasi distribusi portofolio (`02_descriptive.ipynb`) | Belum |
+| **Tahap 2** | Descriptive Analytics | Statistik deskriptif & visualisasi distribusi portofolio (`02_descriptive.ipynb`) | **Selesai** |
 | **Tahap 3** | Diagnostic Analytics | Uji hipotesis, analisis korelasi, dan faktor penyebab *default* (`03_diagnostic.ipynb`) | Belum |
 | **Tahap 4** | Predictive Analytics | Pemodelan klasifikasi *default* & regresi beserta evaluasi SHAP (`04_*.ipynb`, `05_*.ipynb`) | Belum |
 | **Tahap 5** | Prescriptive Analytics | Optimasi alokasi portofolio pinjaman dengan `PuLP` (`06_prescriptive.ipynb`) | Belum |
 | **Tahap 6** | Semantic Analytics | Perancangan ontologi RDF/OWL, *knowledge graph*, dan query SPARQL (`07_semantic.ipynb`, `ontology/`) | Belum |
 | **Tahap 7** | Dashboard Interaktif | Pembuatan aplikasi web interaktif menggunakan Streamlit (`dashboard/`) | Belum |
 | **Tahap 8** | Laporan Akhir & Finalisasi | Penyusunan laporan akhir (`.docx`) dan pemeriksaan reproduktifitas menyeluruh (`reports/`) | Belum |
+
+---
+
+## 6. Daftar Tabel dan Grafik Tahap 2 (Descriptive Analytics)
+
+### a. Tabel Ringkasan (`reports/tables/02_*.csv`)
+
+| Nama File | Deskripsi Satu Baris |
+| :--- | :--- |
+| `reports/tables/02_kpi_portofolio.csv` | Ringkasan KPI portofolio (`n = 179.235`) dan metrik hasil akhir pada subset *resolved* (`n = 113.560`) lengkap dengan nilai antara (pembilang, penyebut, `n`). |
+| `reports/tables/02_numeric_summary.csv` | Statistik deskriptif lengkap (n, missing, mean, std, min, p01–p99, max, skewness, kurtosis) untuk 33 variabel numerik. |
+| `reports/tables/02_categorical_frequency.csv` | Tabel frekuensi format panjang (`variabel`, `nilai`, `jumlah`, `persen`) untuk 12 variabel kategorikal utama dengan kode `-1 (Not set)` terpisah. |
+| `reports/tables/02_yearly_trend.csv` | Tren tahunan (`2009–2021`) jumlah pinjaman, total nominal EUR, serta rata-rata/median `Amount`, `Interest`, `LoanDuration`, dan `IncomeTotal`. |
+| `reports/tables/02_outcome_by_year.csv` | Komposisi 4 kelompok hasil pinjaman per tahun pencairan beserta `n_total`, `n_resolved`, dan `pct_resolved`. |
+| `reports/tables/02_missing_by_year.csv` | Jumlah dan persentase nilai kosong per tahun (`loan_year`) untuk `MonthlyPayment`, `PreviousRepaymentsBeforeLoan`, dan `CreditScoreEsMicroL`. |
+| `reports/tables/02_default_rate_by_segment.csv` | Profil proporsi default, interval kepercayaan Wilson 95%, dan default rate berbobot `Amount` pada subset *resolved* (`n = 113.560`) lintas 12 dimensi segmentasi. |
+| `reports/tables/02_return_ratio_summary.csv` | Ringkasan distribusi `return_ratio` (mean, berbobot `Amount`, kuartil/persentil, persentase nol) menurut kelompok hasil, `Country`, `Rating`, dan `loan_year`. |
+
+### b. Grafik Visualisasi (`reports/figures/02_*.png`)
+
+| Nama File | Deskripsi Satu Baris |
+| :--- | :--- |
+| `reports/figures/02_outcome_composition.png` | Grafik batang horizontal dan donat komposisi 4 kelompok hasil pada seluruh portofolio (`n = 179.235`). |
+| `reports/figures/02_numeric_distributions_pinjaman.png` | Histogram dan boxplot berdampingan untuk `Amount`, `AppliedAmount`, `Interest`, dan `LoanDuration`. |
+| `reports/figures/02_numeric_distributions_peminjam.png` | Histogram dan boxplot berdampingan untuk `MonthlyPayment`, `Age` (tanpa umur tidak wajar), `IncomeTotal` (tanpa pendapatan nol), dan `LiabilitiesTotal`. |
+| `reports/figures/02_numeric_distributions_rasio_return.png` | Histogram dan boxplot berdampingan untuk `DebtToIncome`, `FreeCash`, `loan_to_income_ratio`, dan `return_ratio` (khusus *resolved*). |
+| `reports/figures/02_country_distribution.png` | Grafik batang horizontal distribusi jumlah dan persentase pinjaman menurut negara asal (`EE`, `FI`, `ES`, `SK`). |
+| `reports/figures/02_categorical_distributions_1.png` | Grafik batang horizontal proporsi untuk `Rating`, `NewCreditCustomer`, `VerificationType`, `LanguageCode`, `Gender`, dan `Education`. |
+| `reports/figures/02_categorical_distributions_2.png` | Grafik batang horizontal proporsi untuk `MaritalStatus`, `EmploymentStatus`, `OccupationArea`, `UseOfLoan`, dan `HomeOwnershipType` (kode `-1 (Not set)` ditandai). |
+| `reports/figures/02_loan_volume_trend.png` | Grafik garis perkembangan jumlah pinjaman dan total nominal `Amount` (Juta EUR) per tahun dan per bulan (`2009–2021`). |
+| `reports/figures/02_yearly_metrics_trend.png` | Grafik garis tren tahunan rata-rata dan median `Amount`, `Interest`, `LoanDuration`, serta `IncomeTotal`. |
+| `reports/figures/02_country_mix_by_year.png` | Grafik batang bertumpuk 100% komposisi negara asal pinjaman (`Country`) per tahun pencairan. |
+| `reports/figures/02_sentinel_and_model_version_by_year.png` | Grafik tren persentase kode `-1 (Not set)` dan distribusi `ModelVersion` per tahun pencairan. |
+| `reports/figures/02_outcome_mix_by_year.png` | Grafik batang bertumpuk 100% komposisi 4 kelompok hasil per tahun pencairan beserta `pct_resolved`. |
+| `reports/figures/02_missing_indicators_by_year.png` | Grafik garis persentase nilai kosong per tahun untuk `MonthlyPayment`, `PreviousRepaymentsBeforeLoan`, dan `CreditScoreEsMicroL`. |
+| `reports/figures/02_default_rate_utama.png` | Profil default rate beserta CI Wilson 95% menurut `Country`, `Rating`, `NewCreditCustomer`, `VerificationType`, kelompok `Age`, dan kuartil `IncomeTotal`. |
+| `reports/figures/02_default_rate_demografi_pinjaman.png` | Profil default rate beserta CI Wilson 95% menurut kelompok `LoanDuration`, kuartil `Amount`, `Education`, `EmploymentStatus`, `HomeOwnershipType`, dan `UseOfLoan`. |
+| `reports/figures/02_rating_pd_vs_observed.png` | Perbandingan kasar rata-rata `ProbabilityOfDefault` Bondora terhadap default rate teramati per kelas `Rating` (`AA` s.d. `HR`). |
+| `reports/figures/02_return_ratio_by_outcome.png` | Histogram dan boxplot distribusi `return_ratio` antara pinjaman `Default` dan `Lunas tanpa default` pada subset *resolved*. |
+| `reports/figures/02_principal_recovery_distribution.png` | Proporsi pinjaman default dengan `PrincipalRecovery > 0` dan distribusi rasio pemulihan pokok (`PrincipalRecovery / Amount`). |
+
