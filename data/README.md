@@ -31,11 +31,11 @@ Sementara itu:
 
 ## 5. Tabel Metadata Unduhan
 
-Silakan lengkapi tabel berikut setelah Anda mengunduh dataset secara manual ke `data/raw/`:
+Berikut adalah metadata dataset yang telah diverifikasi pada `data/raw/`:
 
-| Tanggal Unduh | Nama File | Ukuran File | Jumlah Baris |
-| :--- | :--- | :--- | :--- |
-| `TODO: YYYY-MM-DD` | `TODO: LoanData.csv` | `TODO: ... MB` | `TODO: ... baris` |
-| `TODO: YYYY-MM-DD` | `TODO: RepaymentsData.csv (opsional)` | `TODO: ... MB` | `TODO: ... baris` |
+| Tanggal Unduh | Nama File | Ukuran File | Jumlah Baris | Jumlah Kolom | Tanggal Laporan (`REPORT_DATE`) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `2026-10-17` | `LoanData.csv` | `142,66 MB` (`149.591.227` byte) | `179.235` baris | `112` kolom | `2021-07-20` |
+| `TODO: YYYY-MM-DD` | `TODO: RepaymentsData.csv (opsional)` | `TODO: ... MB` | `TODO: ... baris` | `TODO: ... kolom` | `TODO` |
 
-*(Catatan: Eksplorasi detail mengenai struktur dan isi kolom dataset akan dilakukan pada Tahap 1).*
+*(Catatan: Hasil pembersihan data Tahap 1 disimpan ke `data/processed/bondora_clean.parquet` berukuran `34,80 MB` dengan `179.235` baris $\times$ `126` kolom beserta `data/processed/schema.json`).*

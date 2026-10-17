@@ -120,7 +120,7 @@ Lihat panduan lengkap, daftar file yang dibutuhkan (`LoanData.csv` dan opsional 
 | Tahap | Nama Tahap | Fokus Utama & Deliverables | Status |
 | :---: | :--- | :--- | :---: |
 | **Tahap 0** | Persiapan Proyek & Environment | Struktur repo, `.venv`, instalasi paket, konfigurasi, template notebook & dokumen | **Selesai** |
-| **Tahap 1** | Data Understanding & Preprocessing | Eksplorasi skema, pembersihan data, penanganan *missing values* & *data leakage* (`01_data_understanding.ipynb`) | Belum |
+| **Tahap 1** | Data Understanding & Preprocessing | Eksplorasi skema, pembersihan data, penanganan *missing values* & *data leakage* (`01_data_understanding.ipynb`) | **Selesai** |
 | **Tahap 2** | Descriptive Analytics | Statistik deskriptif & visualisasi distribusi portofolio (`02_descriptive.ipynb`) | Belum |
 | **Tahap 3** | Diagnostic Analytics | Uji hipotesis, analisis korelasi, dan faktor penyebab *default* (`03_diagnostic.ipynb`) | Belum |
 | **Tahap 4** | Predictive Analytics | Pemodelan klasifikasi *default* & regresi beserta evaluasi SHAP (`04_*.ipynb`, `05_*.ipynb`) | Belum |
