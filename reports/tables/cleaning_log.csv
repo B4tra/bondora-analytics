@@ -1,0 +1,6 @@
+urutan,langkah,baris_sebelum,baris_sesudah,kolom_sebelum,kolom_sesudah,jumlah_nilai_diubah,alasan
+1,"Langkah 3: Penambahan kolom target (default, is_resolved, return_ratio)",179235,179235,112,115,537705,"Mendefinisikan target klasifikasi (Opsi 2B), status resolusi censoring (Opsi 3A), dan target regresi return_ratio (Opsi 4A)"
+2,Langkah 4.1: Konversi 18 kolom tanggal dari str ke datetime64,179235,179235,115,115,2270476,Mengubah representasi teks tanggal menjadi tipe datetime64[ns] tanpa kehilangan nilai non-null (0 gagal parse)
+3,"Langkah 4.2: Pemeriksaan duplikat baris penuh dan ID pinjaman (LoanId, LoanNumber)",179235,179235,115,115,0,Tidak ditemukan baris duplikat (0 duplikat penuh maupun pada LoanId/LoanNumber)
+4,Langkah 4.3: Pembuatan 5 kolom flag penanda nilai tak wajar/sentinel,179235,179235,115,120,896175,"Menandai anomali tanpa menghapus data: Age<18 (53), kode sentinel -1 (142698), FreeCash<0 (23), saldo negatif (17), IncomeTotal<=0 (64)"
+5,Langkah 4.4: Standarisasi strip & pemeriksaan kapitalisasi pada 17 kolom teks,179235,179235,120,120,0,Seluruh kolom teks sudah bersih dari spasi berlebih dan inkonsistensi huruf besar/kecil (0 perubahan)

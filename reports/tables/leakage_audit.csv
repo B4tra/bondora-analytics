@@ -1,0 +1,113 @@
+nama_kolom,kategori,boleh_jadi_fitur,alasan
+ReportAsOfEOD,pengenal,N,Tanggal snapshot laporan (konstan 2021-07-20 pada seluruh baris); disimpan sebagai REPORT_DATE
+LoanId,pengenal,N,UUID pengenal unik pinjaman (kardinalitas = jumlah baris)
+LoanNumber,pengenal,N,Nomor urut unik pinjaman (kardinalitas = jumlah baris)
+ListedOnUTC,saat_pengajuan,Y,Waktu penayangan pinjaman di platform (0% missing)
+BiddingStartedOn,saat_pengajuan,Y,Waktu dimulainya penawaran pendanaan (0% missing)
+BidsPortfolioManager,tidak_jelas,?,Jumlah tawaran pendanaan melalui Portfolio Manager saat lelang pinjaman; perlu konfirmasi apakah hasil bidding dipakai sebagai fitur
+BidsApi,tidak_jelas,?,Jumlah tawaran pendanaan melalui API saat lelang pinjaman; perlu konfirmasi apakah hasil bidding dipakai sebagai fitur
+BidsManual,tidak_jelas,?,Jumlah tawaran pendanaan manual oleh investor saat lelang; perlu konfirmasi apakah hasil bidding dipakai sebagai fitur
+UserName,pengenal,N,"Pengenal akun peminjam (ID unik pengguna, bukan fitur generalisasi)"
+NewCreditCustomer,saat_pengajuan,Y,Apakah peminjam merupakan pelanggan baru di Bondora tanpa riwayat kredit sebelumnya (0% missing)
+LoanApplicationStartedDate,saat_pengajuan,Y,Tanggal/waktu pengajuan pinjaman dimulai oleh peminjam (0% missing)
+LoanDate,saat_pengajuan,Y,Tanggal pencairan pinjaman; acuan waktu utama (0% missing)
+ContractEndDate,pasca_pinjaman,N,Tanggal berakhirnya kontrak aktual di masa depan/setelah pelunasan (42.54% missing)
+FirstPaymentDate,saat_pengajuan,Y,Tanggal jadwal pembayaran cicilan pertama yang ditetapkan saat kontrak awal (0% missing)
+MaturityDate_Original,saat_pengajuan,Y,Tanggal jatuh tempo awal sesuai kontrak saat pengajuan (0% missing)
+MaturityDate_Last,pasca_pinjaman,N,Tanggal jatuh tempo terakhir yang berubah apabila terjadi restrukturisasi selama masa pinjaman
+ApplicationSignedHour,saat_pengajuan,Y,Jam penandatanganan aplikasi pinjaman (0-23; 0% missing)
+ApplicationSignedWeekday,saat_pengajuan,Y,Hari dalam minggu saat penandatanganan aplikasi pinjaman (1-7; 0% missing)
+VerificationType,saat_pengajuan,Y,Metode verifikasi pendapatan/identitas saat pengajuan (0.03% missing)
+LanguageCode,saat_pengajuan,Y,Kode bahasa peminjam saat pengajuan (0% missing)
+Age,saat_pengajuan,Y,Usia peminjam saat pengajuan pinjaman dalam tahun (0% missing)
+DateOfBirth,saat_pengajuan,N,"Tanggal lahir peminjam; 100% missing (dihapus/dianonimkan oleh Bondora, sudah diwakili oleh Age)"
+Gender,saat_pengajuan,Y,Jenis kelamin peminjam saat pengajuan (0.03% missing)
+Country,saat_pengajuan,Y,"Negara asal pinjaman: EE, FI, ES, SK (0% missing)"
+AppliedAmount,saat_pengajuan,Y,Jumlah pinjaman yang diajukan peminjam pada awal aplikasi (0% missing)
+Amount,saat_pengajuan,?,Jumlah pokok pinjaman yang dicairkan (juga menjadi penyebut pada rumus target regresi return_ratio); perlu konfirmasi penggunaannya sebagai fitur
+Interest,saat_pengajuan,?,Suku bunga tahunan pinjaman (%) yang ditetapkan platform berdasarkan tingkat risiko/Rating saat pengajuan; perlu konfirmasi apakah boleh menjadi fitur
+LoanDuration,saat_pengajuan,Y,Tenor/durasi pinjaman awal dalam bulan (0% missing)
+MonthlyPayment,saat_pengajuan,Y,Estimasi cicilan bulanan terjadwal saat pengajuan (3.73% missing)
+County,saat_pengajuan,N,Wilayah/kabupaten peminjam; 100% missing (0 nilai non-null)
+City,saat_pengajuan,N,Kota domisili peminjam; 100% missing (0 nilai non-null)
+UseOfLoan,saat_pengajuan,Y,"Kode tujuan penggunaan pinjaman saat pengajuan (0% missing, mengandung kode -1)"
+Education,saat_pengajuan,Y,Kode tingkat pendidikan peminjam saat pengajuan (0.03% missing)
+MaritalStatus,saat_pengajuan,Y,"Kode status pernikahan peminjam saat pengajuan (0.03% missing, mengandung kode -1)"
+NrOfDependants,saat_pengajuan,?,Jumlah tanggungan peminjam saat pengajuan; 80.14% missing — bergantung pada keputusan ambang pembuangan kolom missing di Gerbang 2
+EmploymentStatus,saat_pengajuan,Y,"Kode status pekerjaan peminjam saat pengajuan (0.11% missing, mengandung kode -1)"
+EmploymentDurationCurrentEmployer,saat_pengajuan,Y,Kategori lama bekerja di pemberi kerja saat ini (0.90% missing)
+EmploymentPosition,saat_pengajuan,N,Posisi/jabatan pekerjaan peminjam; 100% missing (0 nilai non-null)
+WorkExperience,saat_pengajuan,?,Total pengalaman kerja peminjam saat pengajuan; 79.62% missing — bergantung pada keputusan ambang pembuangan kolom missing di Gerbang 2
+OccupationArea,saat_pengajuan,Y,"Kode bidang pekerjaan peminjam saat pengajuan (0.05% missing, mengandung kode -1)"
+HomeOwnershipType,saat_pengajuan,Y,Kode status kepemilikan tempat tinggal peminjam (0.92% missing)
+IncomeFromPrincipalEmployer,saat_pengajuan,Y,Pendapatan bulanan dari pekerjaan utama yang dilaporkan saat pengajuan (0% missing)
+IncomeFromPension,saat_pengajuan,Y,Pendapatan bulanan dari pensiun saat pengajuan (0% missing)
+IncomeFromFamilyAllowance,saat_pengajuan,Y,Pendapatan bulanan dari tunjangan keluarga saat pengajuan (0% missing)
+IncomeFromSocialWelfare,saat_pengajuan,Y,Pendapatan bulanan dari bantuan sosial saat pengajuan (0% missing)
+IncomeFromLeavePay,saat_pengajuan,Y,Pendapatan bulanan dari uang cuti saat pengajuan (0% missing)
+IncomeFromChildSupport,saat_pengajuan,Y,Pendapatan bulanan dari tunjangan anak saat pengajuan (0% missing)
+IncomeOther,saat_pengajuan,Y,Pendapatan bulanan lainnya saat pengajuan (0% missing)
+IncomeTotal,saat_pengajuan,Y,Total pendapatan bulanan peminjam saat pengajuan (0% missing)
+ExistingLiabilities,saat_pengajuan,Y,Jumlah kewajiban/utang aktif yang dimiliki saat pengajuan (0% missing)
+LiabilitiesTotal,saat_pengajuan,Y,Total nominal kewajiban bulanan peminjam saat pengajuan (0% missing)
+RefinanceLiabilities,saat_pengajuan,Y,Jumlah kewajiban yang direfinansialisasi melalui pinjaman ini (0% missing)
+DebtToIncome,saat_pengajuan,Y,Rasio cicilan utang terhadap pendapatan (DTI) saat pengajuan (0.03% missing)
+FreeCash,saat_pengajuan,Y,Sisa kas bebas bulanan setelah dikurangi kewajiban & cicilan (0.03% missing)
+MonthlyPaymentDay,saat_pengajuan,Y,Tanggal jatuh tempo bulanan yang dipilih saat pengajuan (1-28; 0% missing)
+ActiveScheduleFirstPaymentReached,pasca_pinjaman,N,Indikator apakah jadwal pembayaran pertama yang aktif telah tercapai setelah pinjaman berjalan
+PlannedPrincipalTillDate,pasca_pinjaman,N,Akumulasi pokok terjadwal sampai tanggal laporan (69.61% missing)
+PlannedInterestTillDate,pasca_pinjaman,N,Akumulasi bunga terjadwal sampai tanggal laporan
+LastPaymentOn,pasca_pinjaman,N,Tanggal pembayaran terakhir yang dilakukan peminjam selama masa pinjaman
+CurrentDebtDaysPrimary,pasca_pinjaman,N,Jumlah hari tunggakan pokok pada tanggal laporan (57.47% missing; membocorkan status keterlambatan)
+DebtOccuredOn,pasca_pinjaman,N,Tanggal terjadinya tunggakan pokok setelah pinjaman berjalan (57.47% missing)
+CurrentDebtDaysSecondary,pasca_pinjaman,N,Jumlah hari tunggakan bunga/sekunder pada tanggal laporan (54.10% missing)
+DebtOccuredOnForSecondary,pasca_pinjaman,N,Tanggal terjadinya tunggakan bunga/sekunder setelah pinjaman berjalan (54.10% missing)
+ExpectedLoss,output_model_platform,N,Estimasi Expected Loss dari model internal Bondora; disimpan sebagai benchmark (Keputusan Gerbang 1: Opsi 5A)
+LossGivenDefault,output_model_platform,N,Estimasi Loss Given Default dari model internal Bondora; disimpan sebagai benchmark (Opsi 5A)
+ExpectedReturn,output_model_platform,N,Estimasi Expected Return dari model internal Bondora; disimpan sebagai benchmark (Opsi 5A)
+ProbabilityOfDefault,output_model_platform,N,Estimasi Probability of Default dari model internal Bondora; disimpan sebagai benchmark (Opsi 5A)
+DefaultDate,hasil_target,N,Tanggal kejadian gagal bayar; pembentuk langsung target klasifikasi default (Opsi 2B)
+PrincipalOverdueBySchedule,pasca_pinjaman,N,Jumlah pokok yang menunggak dari jadwal pada tanggal laporan
+PlannedPrincipalPostDefault,pasca_pinjaman,N,Jadwal pembayaran pokok yang direncanakan setelah terjadi default (60.16% missing)
+PlannedInterestPostDefault,pasca_pinjaman,N,Jadwal pembayaran bunga yang direncanakan setelah terjadi default (60.16% missing)
+EAD1,pasca_pinjaman,N,Exposure at Default (metode 1) yang baru dihitung saat terjadi default (60.16% missing)
+EAD2,pasca_pinjaman,N,Exposure at Default (metode 2) yang baru dihitung saat terjadi default (60.16% missing)
+PrincipalRecovery,pasca_pinjaman,N,Jumlah pokok yang berhasil ditagih setelah default (60.16% missing)
+InterestRecovery,pasca_pinjaman,N,Jumlah bunga yang berhasil ditagih setelah default (60.16% missing)
+RecoveryStage,pasca_pinjaman,N,Tahap penagihan/recovery saat pinjaman menunggak/default (37.55% missing)
+StageActiveSince,pasca_pinjaman,N,Timestamp mulai aktifnya tahap penagihan/recovery (33.75% missing)
+ModelVersion,output_model_platform,N,Versi model skoring risiko internal Bondora (Opsi 5A)
+Rating,output_model_platform,N,Rating risiko kredit internal Bondora (AA-HR); disimpan sebagai benchmark (Opsi 5A)
+EL_V0,output_model_platform,N,Expected Loss versi historis V0 internal Bondora (97.45% missing; Opsi 5A)
+Rating_V0,output_model_platform,N,Rating versi historis V0 internal Bondora (97.45% missing; Opsi 5A)
+EL_V1,output_model_platform,N,Expected Loss versi historis V1 internal Bondora (92.79% missing; Opsi 5A)
+Rating_V1,output_model_platform,N,Rating versi historis V1 internal Bondora (92.79% missing; Opsi 5A)
+Rating_V2,output_model_platform,N,Rating versi historis V2 internal Bondora (85.97% missing; Opsi 5A)
+Status,hasil_target,N,Status pinjaman pada tanggal laporan (Current/Late/Repaid); dipakai untuk menentukan is_resolved
+Restructured,pasca_pinjaman,N,Indikator apakah pinjaman telah direstrukturisasi setelah berjalan
+ActiveLateCategory,pasca_pinjaman,N,Kategori hari keterlambatan aktif pada tanggal laporan (58.16% missing)
+WorseLateCategory,pasca_pinjaman,N,Kategori hari keterlambatan terburuk selama masa pinjaman berjalan (29.20% missing)
+CreditScoreEsMicroL,saat_pengajuan,?,Skor kredit eksternal Spanyol (MicroL); 16.91% missing — ditandai '?' sesuai Gerbang 1 No. 5 untuk diputuskan di Gerbang 2
+CreditScoreEsEquifaxRisk,saat_pengajuan,?,Skor risiko Equifax Spanyol; 93.18% missing — ditandai '?' sesuai Gerbang 1 No. 5 untuk diputuskan di Gerbang 2
+CreditScoreFiAsiakasTietoRiskGrade,saat_pengajuan,?,Grade risiko AsiakasTieto Finlandia; 76.66% missing — ditandai '?' sesuai Gerbang 1 No. 5 untuk diputuskan di Gerbang 2
+CreditScoreEeMini,saat_pengajuan,?,Skor kredit mini Estonia; 41.36% missing — ditandai '?' sesuai Gerbang 1 No. 5 untuk diputuskan di Gerbang 2
+PrincipalPaymentsMade,hasil_target,N,Akumulasi pembayaran pokok yang diterima; pembentuk langsung pembilang target regresi return_ratio (Opsi 4A)
+InterestAndPenaltyPaymentsMade,hasil_target,N,Akumulasi pembayaran bunga & denda yang diterima; pembentuk langsung pembilang target regresi return_ratio (Opsi 4A)
+PrincipalWriteOffs,pasca_pinjaman,N,Jumlah pokok pinjaman yang dihapusbukukan setelah gagal bayar (57.51% missing)
+InterestAndPenaltyWriteOffs,pasca_pinjaman,N,Jumlah bunga dan denda yang dihapusbukukan setelah gagal bayar (57.51% missing)
+PrincipalBalance,pasca_pinjaman,N,Sisa saldo pokok yang belum terbayar pada tanggal laporan
+InterestAndPenaltyBalance,pasca_pinjaman,N,Sisa saldo bunga dan denda yang belum terbayar pada tanggal laporan
+NoOfPreviousLoansBeforeLoan,saat_pengajuan,Y,Jumlah pinjaman Bondora sebelumnya yang dimiliki peminjam sebelum pengajuan ini (0.005% missing)
+AmountOfPreviousLoansBeforeLoan,saat_pengajuan,Y,Total nominal pinjaman Bondora sebelumnya sebelum pengajuan ini (0.005% missing)
+PreviousRepaymentsBeforeLoan,saat_pengajuan,?,Jumlah nominal pembayaran pada pinjaman sebelumnya sebelum pinjaman ini; 34.81% missing — perlu konfirmasi di Gerbang 2
+PreviousEarlyRepaymentsBefoleLoan,saat_pengajuan,?,Jumlah nominal pelunasan dipercepat pada pinjaman sebelumnya; 67.15% missing — bergantung pada ambang missing di Gerbang 2
+PreviousEarlyRepaymentsCountBeforeLoan,saat_pengajuan,Y,Frekuensi pelunasan dipercepat pada pinjaman sebelumnya sebelum pengajuan ini (0.005% missing)
+GracePeriodStart,pasca_pinjaman,N,Tanggal mulai masa tenggang (grace period) selama masa pinjaman (76.63% missing)
+GracePeriodEnd,pasca_pinjaman,N,Tanggal selesai masa tenggang (grace period) selama masa pinjaman (76.63% missing)
+NextPaymentDate,pasca_pinjaman,N,Tanggal jatuh tempo pembayaran berikutnya pada saat laporan (63.39% missing)
+NextPaymentNr,pasca_pinjaman,N,Nomor urut cicilan berikutnya pada saat laporan (37.35% missing)
+NrOfScheduledPayments,pasca_pinjaman,N,Jumlah pembayaran terjadwal pada jadwal aktif saat ini (37.35% missing; berubah akibat restrukturisasi)
+ReScheduledOn,pasca_pinjaman,N,Tanggal dilakukannya penjadwalan ulang (rescheduling) pinjaman (64.83% missing)
+PrincipalDebtServicingCost,pasca_pinjaman,N,Biaya penagihan utang pokok pasca-tunggakan (57.51% missing)
+InterestAndPenaltyDebtServicingCost,pasca_pinjaman,N,Biaya penagihan utang bunga dan denda pasca-tunggakan (57.51% missing)
+ActiveLateLastPaymentCategory,pasca_pinjaman,N,Kategori keterlambatan pada pembayaran terakhir (54.10% missing)
