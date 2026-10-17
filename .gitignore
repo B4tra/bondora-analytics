@@ -1,0 +1,22 @@
+# Environment
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Data & model (jangan di-commit)
+data/raw/*
+data/interim/*
+data/processed/*
+data/external/*
+models/*
+!**/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Hasil sementara
+*.log

@@ -1,0 +1,38 @@
+# Data & numerik
+pandas
+numpy
+pyarrow
+scipy
+statsmodels
+
+# Visualisasi
+matplotlib
+seaborn
+plotly
+
+# Machine learning
+scikit-learn
+xgboost
+lightgbm
+imbalanced-learn
+shap
+joblib
+
+# Optimasi (prescriptive)
+pulp
+
+# Semantic
+rdflib
+networkx
+
+# Dashboard
+streamlit
+
+# Notebook
+jupyterlab
+ipykernel
+nbformat
+
+# Utilitas & laporan
+pyyaml
+python-docx
