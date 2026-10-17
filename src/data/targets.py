@@ -1,4 +1,4 @@
-"""Target variable and resolution flag definitions based on Gate 1 decisions."""
+"""Target variable and resolution flag definitions based on Gate 1 and Gate 2 decisions."""
 
 import numpy as np
 import pandas as pd
@@ -10,6 +10,7 @@ from src.config import (
     INTEREST_PENALTY_PAYMENTS_COL,
     IS_RESOLVED_COL,
     PRINCIPAL_PAYMENTS_COL,
+    PRINCIPAL_WRITEOFFS_COL,
     REGRESSION_TARGET_COL,
     STATUS_COL,
     STATUS_REPAID,
@@ -19,11 +20,18 @@ from src.config import (
 def make_default_label(
     df: pd.DataFrame,
     default_date_col: str = DEFAULT_DATE_COL,
+    status_col: str = STATUS_COL,
+    principal_writeoffs_col: str = PRINCIPAL_WRITEOFFS_COL,
+    repaid_status: str = STATUS_REPAID,
 ) -> pd.Series:
-    """Compute binary default classification target (Option 2B).
+    """Compute binary default classification target (Option 2B + Gate 2 refinement).
 
-    A loan is labeled ``default = 1`` if and only if ``default_date_col`` is
-    non-missing (non-empty string / valid timestamp), and ``0`` otherwise.
+    Rules:
+    1. ``DefaultDate`` is non-missing / non-empty -> ``default = 1``.
+    2. ``Status == 'Repaid'`` with missing ``DefaultDate`` but
+       ``PrincipalWriteOffs > 0`` -> ``default = 1`` (448 loans where 92.41%
+       reached >= 61 days late and suffered principal write-off).
+    3. All other rows (including ``Repaid`` with only interest write-offs) -> ``default = 0``.
 
     Parameters
     ----------
@@ -31,6 +39,12 @@ def make_default_label(
         Input loan DataFrame.
     default_date_col : str, default DEFAULT_DATE_COL
         Column name recording the date of default.
+    status_col : str, default STATUS_COL
+        Column name recording loan status.
+    principal_writeoffs_col : str, default PRINCIPAL_WRITEOFFS_COL
+        Column name recording principal write-offs.
+    repaid_status : str, default STATUS_REPAID
+        Status string indicating a repaid loan.
 
     Returns
     -------
@@ -40,10 +54,18 @@ def make_default_label(
     if default_date_col not in df.columns:
         raise KeyError(f"Column '{default_date_col}' not found in DataFrame.")
 
-    s = df[default_date_col]
-    # Treat both NaN/None and empty/whitespace-only strings as missing
-    is_non_empty = s.notna() & (s.astype(str).str.strip() != "")
-    return is_non_empty.astype("int64").rename(DEFAULT_TARGET_COL)
+    s_def = df[default_date_col]
+    has_default_date = s_def.notna() & (s_def.astype(str).str.strip() != "")
+
+    if status_col in df.columns and principal_writeoffs_col in df.columns:
+        is_repaid = df[status_col].astype(str).str.strip() == repaid_status
+        pw = pd.to_numeric(df[principal_writeoffs_col], errors="coerce").fillna(0.0)
+        repaid_with_principal_writeoff = is_repaid & (~has_default_date) & (pw > 0.0)
+        is_default = has_default_date | repaid_with_principal_writeoff
+    else:
+        is_default = has_default_date
+
+    return is_default.astype("int64").rename(DEFAULT_TARGET_COL)
 
 
 def make_is_resolved(
@@ -54,7 +76,7 @@ def make_is_resolved(
 ) -> pd.Series:
     """Compute whether a loan's final default outcome is resolved (Option 3A).
 
-    Rules (Gate 1 Decision #3):
+    Rules:
     - ``DefaultDate`` is present (any status) -> ``is_resolved = True``
     - ``Status == 'Repaid'`` and ``DefaultDate`` is missing -> ``is_resolved = True``
     - ``Status == 'Current'`` and ``DefaultDate`` is missing -> ``is_resolved = False``
@@ -80,7 +102,8 @@ def make_is_resolved(
         if col not in df.columns:
             raise KeyError(f"Column '{col}' not found in DataFrame.")
 
-    has_default_date = make_default_label(df, default_date_col=default_date_col) == 1
+    s_def = df[default_date_col]
+    has_default_date = s_def.notna() & (s_def.astype(str).str.strip() != "")
     is_repaid = df[status_col].astype(str).str.strip() == repaid_status
     resolved = (has_default_date | is_repaid).astype(bool)
     return resolved.rename(IS_RESOLVED_COL)
