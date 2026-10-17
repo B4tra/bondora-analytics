@@ -12,3 +12,4 @@ loan_year,n_total,MonthlyPayment_n_missing,MonthlyPayment_pct_missing,PreviousRe
 2019,55839,0,0.0,1436,2.5717,0,0.0
 2020,27519,0,0.0,551,2.0023,0,0.0
 2021,21584,0,0.0,376,1.742,725,3.359
+Total,179235,6690,3.7325,7441,4.1515,30304,16.9074
