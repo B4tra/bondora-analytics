@@ -1,12 +1,11 @@
-kelompok,aturan_perlakuan,n_baris,pct_dari_total,is_resolved,n_default_1,n_default_0,proporsi_default_pct,loandate_min,loandate_max,return_ratio_min,return_ratio_mean,return_ratio_median,return_ratio_max,return_ratio_pct_zero
-1. DefaultDate terisi (Semua Status),"is_resolved=True, default=1",71416,39.84,True,71416,0,100.0,2009-03-07,2021-03-27,0.0,0.4712,0.3462,5.8721,6.85
-1a. DefaultDate terisi & Status=Late,"is_resolved=True, default=1",60510,33.76,True,60510,0,100.0,2009-03-15,2021-03-27,0.0,0.3582,0.2761,4.3738,8.04
-1b. DefaultDate terisi & Status=Repaid,"is_resolved=True, default=1",10743,5.99,True,10743,0,100.0,2009-03-07,2021-01-05,0.0,1.0992,1.019,5.8721,0.23
-1c. DefaultDate terisi & Status=Current,"is_resolved=True, default=1",163,0.09,True,163,0,100.0,2014-03-03,2021-02-04,0.2176,1.0226,0.9329,3.0466,0.0
-"2a. Status=Repaid, DefaultDate kosong, PrincipalWriteOffs > 0","is_resolved=True, default=1 (92.41% >= 61 hari terlambat)",448,0.25,True,448,0,100.0,2015-06-18,2021-06-28,0.8141,1.1633,1.0785,2.8026,0.0
-"2b. Status=Repaid, DefaultDate kosong, PrincipalWriteOffs == 0","is_resolved=True, default=0 (termasuk 297 baris hanya InterestWriteOffs > 0)",41696,23.26,True,0,41696,0.0,2009-02-28,2021-07-18,0.0,1.24,1.1637,7.4111,0.01
-3. Status=Current & DefaultDate kosong (Censored),is_resolved=False (dikeluarkan dari model prediktif),57611,32.14,False,0,57611,0.0,2012-11-05,2021-07-19,0.0,0.4762,0.4191,4.8635,3.38
-4. Status=Late & DefaultDate kosong (Censored),is_resolved=False (dikeluarkan dari model prediktif),8064,4.5,False,0,8064,0.0,2013-07-18,2021-07-18,0.0,0.5201,0.4802,3.9811,4.76
-SUBSET: is_resolved == True (Masuk Pemodelan Prediktif),Total Resolved (71.864 positif + 41.696 negatif = 113.560),113560,63.36,True,71864,41696,63.28,2009-02-28,2021-07-18,0.0,0.7562,0.7974,7.4111,4.31
-SUBSET: is_resolved == False (Keluar / Right-Censored),Total Censored (57.611 Current + 8.064 Late = 65.675),65675,36.64,False,0,65675,0.0,2012-11-05,2021-07-19,0.0,0.4816,0.4273,4.8635,3.55
-TOTAL SELURUH DATASET,Seluruh baris LoanData.csv (179.235),179235,100.0,Mixed,71864,107371,40.09,2009-02-28,2021-07-19,0.0,0.6556,0.5766,7.4111,4.03
+kelompok,aturan_perlakuan,n_baris,pct_dari_total,is_resolved,n_default_1,n_default_0,n_default_na,proporsi_default_pct,loandate_min,loandate_max,return_ratio_min,return_ratio_mean,return_ratio_median,return_ratio_max,return_ratio_pct_zero
+1. DefaultDate terisi (Semua Status),"is_resolved=True, default=1",71416,39.84,True,71416,0,0,100.0,2009-03-07,2021-03-27,0.0,0.4712,0.3462,5.8721,6.85
+1a. DefaultDate terisi & Status=Late,"is_resolved=True, default=1",60510,33.76,True,60510,0,0,100.0,2009-03-15,2021-03-27,0.0,0.3582,0.2761,4.3738,8.04
+1b. DefaultDate terisi & Status=Repaid,"is_resolved=True, default=1",10743,5.99,True,10743,0,0,100.0,2009-03-07,2021-01-05,0.0,1.0992,1.019,5.8721,0.23
+1c. DefaultDate terisi & Status=Current,"is_resolved=True, default=1",163,0.09,True,163,0,0,100.0,2014-03-03,2021-02-04,0.2176,1.0226,0.9329,3.0466,0.0
+"2a. Status=Repaid, DefaultDate kosong, PrincipalWriteOffs > 0","is_resolved=True, default=1 (92.41% >= 61 hari terlambat)",448,0.25,True,448,0,0,100.0,2015-06-18,2021-06-28,0.8141,1.1633,1.0785,2.8026,0.0
+"2b. Status=Repaid, DefaultDate kosong, PrincipalWriteOffs == 0","is_resolved=True, default=0 (termasuk 297 baris hanya InterestWriteOffs > 0)",41696,23.26,True,0,41696,0,0.0,2009-02-28,2021-07-18,0.0,1.24,1.1637,7.4111,0.01
+3. Status=Current & DefaultDate kosong (Censored),"is_resolved=False, default=NA (dikeluarkan dari model prediktif)",57611,32.14,False,0,0,57611,,2012-11-05,2021-07-19,0.0,0.4762,0.4191,4.8635,3.38
+4. Status=Late & DefaultDate kosong (Censored),"is_resolved=False, default=NA (dikeluarkan dari model prediktif)",8064,4.5,False,0,0,8064,,2013-07-18,2021-07-18,0.0,0.5201,0.4802,3.9811,4.76
+SUBSET: is_resolved == True (Masuk Pemodelan Prediktif),Total Resolved (71.864 positif + 41.696 negatif = 113.560),113560,63.36,True,71864,41696,0,63.28,2009-02-28,2021-07-18,0.0,0.7562,0.7974,7.4111,4.31
+SUBSET: is_resolved == False (Keluar / Right-Censored),Total Censored (57.611 Current + 8.064 Late = 65.675; default=NA),65675,36.64,False,0,0,65675,,2012-11-05,2021-07-19,0.0,0.4816,0.4273,4.8635,3.55

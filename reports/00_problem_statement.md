@@ -25,10 +25,10 @@
 - `TODO: Mengidentifikasi faktor-faktor signifikan dan hubungan kausal/korelasional yang membedakan pinjaman lancar vs gagal bayar.`
 
 ### 3.3 Predictive Analytics
-- **Klasifikasi Default (`default`):** Memprediksi kejadian gagal bayar pinjaman (`default = 1` vs `default = 0`) pada subset pinjaman yang hasil akhirnya telah diketahui (`is_resolved == True`, sebanyak `113.560` baris dengan tingkat gagal bayar `63,28%`):
+- **Klasifikasi Default (`default`, tipe *nullable* `Int8`):** Memprediksi kejadian gagal bayar pinjaman (`default = 1` vs `default = 0`) pada subset pinjaman yang hasil akhirnya telah diketahui (`is_resolved == True`, sebanyak `113.560` baris dengan tingkat gagal bayar `63,28%`):
   - `default = 1` (`71.864` baris): apabila `DefaultDate` tidak kosong (`71.416` baris pada seluruh status) **ATAU** pinjaman berstatus `Repaid` tanpa `DefaultDate` namun memiliki penghapusan buku pokok `PrincipalWriteOffs > 0` (`448` baris, di mana `92,41%` pernah mengalami keterlambatan $\ge 61$ hari).
   - `default = 0` (`41.696` baris): apabila pinjaman berstatus `Repaid`, `DefaultDate` kosong, dan `PrincipalWriteOffs == 0` (termasuk `297` baris yang hanya memiliki `InterestAndPenaltyWriteOffs > 0`).
-  - Pinjaman berjalan tanpa `DefaultDate` (`Status == 'Current'` sebanyak `57.611` baris dan `Status == 'Late'` sebanyak `8.064` baris; total `65.675` baris) ditandai `is_resolved = False` (*right-censored*) dan dikeluarkan dari pelatihan/evaluasi model prediktif, namun tetap disimpan di dataset bersih untuk analisis *Descriptive*, *Diagnostic*, dan *Semantic*.
+  - `default = <NA>` (`65.675` baris): pinjaman berjalan tanpa `DefaultDate` (`Status == 'Current'` sebanyak `57.611` baris dan `Status == 'Late'` sebanyak `8.064` baris) ditandai `is_resolved = False` (*right-censored*) dan memiliki nilai `default = <NA>`, sehingga dikeluarkan dari pelatihan/evaluasi model prediktif namun tetap disimpan di dataset bersih untuk analisis *Descriptive*, *Diagnostic*, dan *Semantic*.
 - **Regresi (`return_ratio`):** Memprediksi rasio pengembalian aktual sampai tanggal laporan (`2021-07-20`):
   $$\text{return\_ratio} = \frac{\text{PrincipalPaymentsMade} + \text{InterestAndPenaltyPaymentsMade}}{\text{Amount}}$$
   dengan catatan bahwa `PrincipalRecovery` dan `InterestRecovery` telah termasuk di dalam `PrincipalPaymentsMade` dan `InterestAndPenaltyPaymentsMade`, nilai `Amount <= 0` atau `NaN` menghasilkan `NaN`, serta nilai ini merupakan batas bawah (*lower bound*) bagi pinjaman default yang masih dalam proses penagihan pada tanggal laporan.
