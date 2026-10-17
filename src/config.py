@@ -24,10 +24,30 @@ NOTEBOOKS_DIR: Path = PROJECT_ROOT / "notebooks"
 # Reproducibility seed
 RANDOM_SEED: int = 42
 
+# Dataset snapshot report date (from ReportAsOfEOD)
+REPORT_DATE: str = "2021-07-20"
+
 # Raw dataset filenames
 # TODO: konfirmasi nama file sesuai unduhan pengguna
 LOANDATA_FILENAME: str = "LoanData.csv"
 REPAYMENTS_FILENAME: str = "RepaymentsData.csv"
+
+# Core column names and status values for target definitions (Gate 1 decisions)
+STATUS_COL: str = "Status"
+DEFAULT_DATE_COL: str = "DefaultDate"
+LOAN_DATE_COL: str = "LoanDate"
+AMOUNT_COL: str = "Amount"
+PRINCIPAL_PAYMENTS_COL: str = "PrincipalPaymentsMade"
+INTEREST_PENALTY_PAYMENTS_COL: str = "InterestAndPenaltyPaymentsMade"
+
+STATUS_REPAID: str = "Repaid"
+STATUS_CURRENT: str = "Current"
+STATUS_LATE: str = "Late"
+
+# Output target column names
+DEFAULT_TARGET_COL: str = "default"
+REGRESSION_TARGET_COL: str = "return_ratio"
+IS_RESOLVED_COL: str = "is_resolved"
 
 
 def ensure_dirs() -> None:
