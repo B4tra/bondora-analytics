@@ -1,0 +1,31 @@
+kategori,metrik,populasi,pembilang,penyebut,n,nilai,satuan
+Skala Portofolio,Total pinjaman (baris),Seluruh portofolio,179235.0,179235.0,179235,179235.0,pinjaman
+Skala Portofolio,Peminjam unik (UserName),Seluruh portofolio,85087.0,179235.0,179235,85087.0,peminjam
+Skala Portofolio,Pinjaman dari peminjam dengan riwayat pinjaman sebelumnya (NoOfPreviousLoansBeforeLoan > 0),Seluruh portofolio,94194.0,179235.0,179235,52.5534,%
+Pelanggan Kredit,Proporsi NewCreditCustomer == True (pelanggan baru Bondora),Seluruh portofolio,100402.0,179235.0,179235,56.017,%
+Pelanggan Kredit,Proporsi NewCreditCustomer == False (existing customer >=3 bulan),Seluruh portofolio,78833.0,179235.0,179235,43.983,%
+Nominal & Harga,Total nominal Amount dicairkan,Seluruh portofolio,455879387.31,179235.0,179235,455879387.31,EUR
+Nominal & Harga,Rata-rata Amount dicairkan,Seluruh portofolio,455879387.31,179235.0,179235,2543.473,EUR
+Nominal & Harga,Median Amount dicairkan,Seluruh portofolio,,179235.0,179235,2125.0,EUR
+Nominal & Harga,Rata-rata suku bunga Interest (sederhana),Seluruh portofolio,6155985.42,179235.0,179235,34.3459,%
+Nominal & Harga,Rata-rata suku bunga Interest (berbobot Amount),Seluruh portofolio,15104445238.83,455879387.31,179235,33.1325,%
+Nominal & Harga,Median suku bunga Interest,Seluruh portofolio,,179235.0,179235,30.0,%
+Nominal & Harga,Rata-rata tenor LoanDuration,Seluruh portofolio,8482251.0,179235.0,179235,47.3247,bulan
+Nominal & Harga,Median tenor LoanDuration,Seluruh portofolio,,179235.0,179235,60.0,bulan
+Komposisi 4 Kelompok Hasil,Kelompok: Default,Seluruh portofolio,71864.0,179235.0,179235,40.0948,%
+Komposisi 4 Kelompok Hasil,Kelompok: Lunas tanpa default,Seluruh portofolio,41696.0,179235.0,179235,23.2633,%
+Komposisi 4 Kelompok Hasil,Kelompok: Berjalan (Current),Seluruh portofolio,57611.0,179235.0,179235,32.1427,%
+Komposisi 4 Kelompok Hasil,Kelompok: Terlambat belum default,Seluruh portofolio,8064.0,179235.0,179235,4.4991,%
+Resolusi & Risiko Default,Proporsi pinjaman selesai/resolved (is_resolved == True),Seluruh portofolio,113560.0,179235.0,179235,63.3582,%
+Resolusi & Risiko Default,"Default rate (sederhana, jumlah ÷ n resolved)",is_resolved == True,71864.0,113560.0,113560,63.2828,%
+Resolusi & Risiko Default,Default rate berbobot Amount (EUR default ÷ EUR resolved),is_resolved == True,190582273.77,284724887.44,113560,66.9356,%
+Pengembalian (Return Ratio),Return ratio rata-rata sederhana (is_resolved == True),is_resolved == True,85875.5801,113560.0,113560,0.7562,rasio
+Pengembalian (Return Ratio),Return ratio median (is_resolved == True),is_resolved == True,,113560.0,113560,0.7974,rasio
+Pengembalian (Return Ratio),Return ratio berbobot Amount (total pembayaran ÷ total Amount resolved),is_resolved == True,202884157.38,284724887.44,113560,0.7126,rasio
+Distribusi Status Mentah,Status: Late,Seluruh portofolio,68574.0,179235.0,179235,38.2593,%
+Distribusi Status Mentah,Status: Current,Seluruh portofolio,57774.0,179235.0,179235,32.2337,%
+Distribusi Status Mentah,Status: Repaid,Seluruh portofolio,52887.0,179235.0,179235,29.5071,%
+Distribusi Negara (Country),Country: EE,Seluruh portofolio,110714.0,179235.0,179235,61.7703,%
+Distribusi Negara (Country),Country: FI,Seluruh portofolio,41955.0,179235.0,179235,23.4078,%
+Distribusi Negara (Country),Country: ES,Seluruh portofolio,26270.0,179235.0,179235,14.6567,%
+Distribusi Negara (Country),Country: SK,Seluruh portofolio,296.0,179235.0,179235,0.1651,%
