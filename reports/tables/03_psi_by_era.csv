@@ -1,0 +1,45 @@
+fitur,tipe,n_ref_2009_2016,n_2017,n_2018_2020,psi_2017,kategori_psi_2017,psi_2018_2020,kategori_psi_2018_2020,catatan_pergeseran
+EmploymentStatus,kategorikal,31257,17933,108461,7.097963,"Bergeser besar (> 0,25)",17.685139,"Bergeser besar (> 0,25)",Pergeseran struktural kode -1 (Not set) mencapai ~100% sejak pertengahan 2017 / 2018
+MaritalStatus,kategorikal,31257,17933,108461,7.079158,"Bergeser besar (> 0,25)",17.037584,"Bergeser besar (> 0,25)",Pergeseran struktural kode -1 (Not set) mencapai ~100% sejak pertengahan 2017 / 2018
+CreditScoreEsMicroL,kategorikal,31257,17933,108461,4.899991,"Bergeser besar (> 0,25)",16.692581,"Bergeser besar (> 0,25)",Perubahan cakupan skoring biro kredit eksternal & komposisi negara antar-era
+UseOfLoan,kategorikal,31257,17933,108461,7.11425,"Bergeser besar (> 0,25)",16.526147,"Bergeser besar (> 0,25)",Pergeseran struktural kode -1 (Not set) mencapai ~100% sejak pertengahan 2017 / 2018
+OccupationArea,kategorikal,31257,17933,108461,5.135481,"Bergeser besar (> 0,25)",12.998574,"Bergeser besar (> 0,25)",Pergeseran struktural kode -1 (Not set) mencapai ~100% sejak pertengahan 2017 / 2018
+IncomeFromPrincipalEmployer,numerik,31257,17933,108461,2.084032,"Bergeser besar (> 0,25)",8.282458,"Bergeser besar (> 0,25)",Perubahan pencatatan rincian pendapatan & kas bebas (mayoritas bernilai 0 sejak 2018)
+FreeCash,numerik,31257,17933,108461,2.314597,"Bergeser besar (> 0,25)",8.277491,"Bergeser besar (> 0,25)",Perubahan pencatatan rincian pendapatan & kas bebas (mayoritas bernilai 0 sejak 2018)
+DebtToIncome,numerik,31257,17933,108461,2.100708,"Bergeser besar (> 0,25)",8.275031,"Bergeser besar (> 0,25)",Perubahan pencatatan rincian pendapatan & kas bebas (mayoritas bernilai 0 sejak 2018)
+CreditScoreFiAsiakasTietoRiskGrade,kategorikal,31257,17933,108461,0.848421,"Bergeser besar (> 0,25)",2.853593,"Bergeser besar (> 0,25)",Perubahan cakupan skoring biro kredit eksternal & komposisi negara antar-era
+VerificationType,kategorikal,31257,17933,108461,0.498696,"Bergeser besar (> 0,25)",2.310369,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+monthly_payment_to_income_ratio,numerik,31257,17933,108461,1.746886,"Bergeser besar (> 0,25)",2.301347,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+EmploymentDurationCurrentEmployer,kategorikal,31257,17933,108461,0.613877,"Bergeser besar (> 0,25)",2.271182,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+total_liabilities_to_income_ratio,numerik,31257,17933,108461,0.590624,"Bergeser besar (> 0,25)",1.997276,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+MonthlyPayment,numerik,31257,17933,108461,1.712709,"Bergeser besar (> 0,25)",1.814221,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+HomeOwnershipType,kategorikal,31257,17933,108461,0.591953,"Bergeser besar (> 0,25)",1.591462,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+LiabilitiesTotal,numerik,31257,17933,108461,0.336201,"Bergeser besar (> 0,25)",1.17399,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+RefinanceLiabilities,numerik,31257,17933,108461,0.197713,"Bergeser sedang (0,10-0,25)",1.116473,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+AppliedAmount,numerik,31257,17933,108461,1.118118,"Bergeser besar (> 0,25)",0.942138,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+Amount,numerik,31257,17933,108461,0.936088,"Bergeser besar (> 0,25)",0.798646,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+IncomeFromPension,numerik,31257,17933,108461,0.058501,"Stabil (< 0,10)",0.685387,"Bergeser besar (> 0,25)",Perubahan pencatatan rincian pendapatan & kas bebas (mayoritas bernilai 0 sejak 2018)
+IncomeFromFamilyAllowance,numerik,31257,17933,108461,0.062591,"Stabil (< 0,10)",0.683056,"Bergeser besar (> 0,25)",Perubahan pencatatan rincian pendapatan & kas bebas (mayoritas bernilai 0 sejak 2018)
+IncomeOther,numerik,31257,17933,108461,0.094193,"Stabil (< 0,10)",0.673222,"Bergeser besar (> 0,25)",Perubahan pencatatan rincian pendapatan & kas bebas (mayoritas bernilai 0 sejak 2018)
+PreviousRepaymentsBeforeLoan,numerik,31257,17933,108461,0.296373,"Bergeser besar (> 0,25)",0.622394,"Bergeser besar (> 0,25)",Perubahan proporsi peminjam berulang & pencatatan riwayat pembayaran sejak 2018
+Education,kategorikal,31257,17933,108461,0.136874,"Bergeser sedang (0,10-0,25)",0.609717,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+LoanDuration,numerik,31257,17933,108461,0.710057,"Bergeser besar (> 0,25)",0.594583,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+AmountOfPreviousLoansBeforeLoan,numerik,31257,17933,108461,0.407722,"Bergeser besar (> 0,25)",0.472806,"Bergeser besar (> 0,25)",Perubahan proporsi peminjam berulang & pencatatan riwayat pembayaran sejak 2018
+ExistingLiabilities,numerik,31257,17933,108461,0.085675,"Stabil (< 0,10)",0.443408,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+avg_previous_loan_amount,numerik,31257,17933,108461,0.328432,"Bergeser besar (> 0,25)",0.332428,"Bergeser besar (> 0,25)",Perubahan proporsi peminjam berulang & pencatatan riwayat pembayaran sejak 2018
+NoOfPreviousLoansBeforeLoan,numerik,31257,17933,108461,0.255329,"Bergeser besar (> 0,25)",0.314359,"Bergeser besar (> 0,25)",Perubahan proporsi peminjam berulang & pencatatan riwayat pembayaran sejak 2018
+MonthlyPaymentDay,numerik,31257,17933,108461,0.022698,"Stabil (< 0,10)",0.256609,"Bergeser besar (> 0,25)","Pergeseran distribusi populasi besar (> 0,25) antar-era"
+CreditScoreEeMini,numerik,31257,17933,108461,0.188639,"Bergeser sedang (0,10-0,25)",0.152698,"Bergeser sedang (0,10-0,25)",Perubahan cakupan skoring biro kredit eksternal & komposisi negara antar-era
+LanguageCode,kategorikal,31257,17933,108461,0.073356,"Stabil (< 0,10)",0.127902,"Bergeser sedang (0,10-0,25)","Pergeseran distribusi sedang (0,10–0,25) antar-era"
+NewCreditCustomer,boolean,31257,17933,108461,0.175458,"Bergeser sedang (0,10-0,25)",0.107023,"Bergeser sedang (0,10-0,25)","Pergeseran distribusi sedang (0,10–0,25) antar-era"
+Age,numerik,31257,17933,108461,0.030702,"Stabil (< 0,10)",0.104221,"Bergeser sedang (0,10-0,25)","Pergeseran distribusi sedang (0,10–0,25) antar-era"
+Country,kategorikal,31257,17933,108461,0.05563,"Stabil (< 0,10)",0.086465,"Stabil (< 0,10)","Distribusi relatif stabil (< 0,10) antar-era"
+ApplicationSignedHour,numerik,31257,17933,108461,0.043905,"Stabil (< 0,10)",0.085184,"Stabil (< 0,10)","Distribusi relatif stabil (< 0,10) antar-era"
+PreviousEarlyRepaymentsBefoleLoan,numerik,31257,17933,108461,0.0,"Stabil (< 0,10)",0.065738,"Stabil (< 0,10)",Perubahan proporsi peminjam berulang & pencatatan riwayat pembayaran sejak 2018
+loan_to_income_ratio,numerik,31257,17933,108461,0.093194,"Stabil (< 0,10)",0.050189,"Stabil (< 0,10)","Distribusi relatif stabil (< 0,10) antar-era"
+IncomeTotal,numerik,31257,17933,108461,0.043986,"Stabil (< 0,10)",0.039323,"Stabil (< 0,10)","Distribusi relatif stabil (< 0,10) antar-era"
+ApplicationSignedWeekday,numerik,31257,17933,108461,0.026283,"Stabil (< 0,10)",0.037288,"Stabil (< 0,10)","Distribusi relatif stabil (< 0,10) antar-era"
+PreviousEarlyRepaymentsCountBeforeLoan,numerik,31257,17933,108461,2.8e-05,"Stabil (< 0,10)",0.000232,"Stabil (< 0,10)","Distribusi relatif stabil (< 0,10) antar-era"
+IncomeFromLeavePay,numerik,31257,17933,108461,0.0,"Stabil (< 0,10)",0.0,"Stabil (< 0,10)",Perubahan pencatatan rincian pendapatan & kas bebas (mayoritas bernilai 0 sejak 2018)
+IncomeFromChildSupport,numerik,31257,17933,108461,0.0,"Stabil (< 0,10)",0.0,"Stabil (< 0,10)",Perubahan pencatatan rincian pendapatan & kas bebas (mayoritas bernilai 0 sejak 2018)
+IncomeFromSocialWelfare,numerik,31257,17933,108461,0.0,"Stabil (< 0,10)",0.0,"Stabil (< 0,10)",Perubahan pencatatan rincian pendapatan & kas bebas (mayoritas bernilai 0 sejak 2018)
