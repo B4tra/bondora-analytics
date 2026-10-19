@@ -169,13 +169,13 @@ FINAL_AUDIT_SPEC: dict[str, tuple[str, str, str, str]] = {
     "AppliedAmount": ("saat_pengajuan", "Y", "fitur", "Jumlah pinjaman yang diajukan peminjam pada formulir awal (0% missing)"),
     "Amount": ("saat_pengajuan", "Y", "fitur", "Jumlah pokok pinjaman yang dicairkan saat kontrak dimulai (0% missing; disetujui di Gerbang 2)"),
     "LoanDuration": ("saat_pengajuan", "Y", "fitur", "Durasi/tenor pinjaman awal dalam bulan (0% missing)"),
-    "MonthlyPayment": ("saat_pengajuan", "Y", "fitur", "Cicilan bulanan terjadwal saat pengajuan (3.73% missing; disertai MonthlyPayment_missing)"),
-    "UseOfLoan": ("saat_pengajuan", "Y", "fitur", "Kode tujuan penggunaan pinjaman saat pengajuan (0% missing; category, kode -1 dipertahankan)"),
+    "MonthlyPayment": ("saat_pengajuan", "Y", "fitur", "Cicilan bulanan terjadwal saat pengajuan (3.73% missing; tetap Y dan diuji lewat ablasi di Tahap 4, sedangkan MonthlyPayment_missing berperan proxy_era [N])"),
+    "UseOfLoan": ("saat_pengajuan", "Y", "fitur", "Kode tujuan penggunaan pinjaman saat pengajuan (0% missing; category, kode -1 dipertahankan; catatan Tahap 3: hampir seluruhnya 'Not set' [-1] sejak 2018 dan perlu perlakuan khusus di Tahap 4)"),
     "Education": ("saat_pengajuan", "Y", "fitur", "Kode tingkat pendidikan peminjam saat pengajuan (0.03% missing; category, kode -1 dipertahankan)"),
-    "MaritalStatus": ("saat_pengajuan", "Y", "fitur", "Kode status pernikahan peminjam saat pengajuan (0.03% missing; category, kode -1 dipertahankan)"),
-    "EmploymentStatus": ("saat_pengajuan", "Y", "fitur", "Kode status pekerjaan peminjam saat pengajuan (0.11% missing; category, kode -1 dipertahankan)"),
+    "MaritalStatus": ("saat_pengajuan", "Y", "fitur", "Kode status pernikahan peminjam saat pengajuan (0.03% missing; category, kode -1 dipertahankan; catatan Tahap 3: hampir seluruhnya 'Not set' [-1] sejak 2018 dan perlu perlakuan khusus di Tahap 4)"),
+    "EmploymentStatus": ("saat_pengajuan", "Y", "fitur", "Kode status pekerjaan peminjam saat pengajuan (0.11% missing; category, kode -1 dipertahankan; catatan Tahap 3: hampir seluruhnya 'Not set' [-1] sejak 2018 dan perlu perlakuan khusus di Tahap 4)"),
     "EmploymentDurationCurrentEmployer": ("saat_pengajuan", "Y", "fitur", "Kategori lama bekerja di pemberi kerja saat ini (0.90% missing; category)"),
-    "OccupationArea": ("saat_pengajuan", "Y", "fitur", "Kode bidang pekerjaan peminjam saat pengajuan (0.05% missing; category, kode -1 dipertahankan)"),
+    "OccupationArea": ("saat_pengajuan", "Y", "fitur", "Kode bidang pekerjaan peminjam saat pengajuan (0.05% missing; category, kode -1 dipertahankan; catatan Tahap 3: hampir seluruhnya 'Not set' [-1] sejak 2018 dan perlu perlakuan khusus di Tahap 4)"),
     "HomeOwnershipType": ("saat_pengajuan", "Y", "fitur", "Kode status kepemilikan tempat tinggal peminjam (0.92% missing; category, kode -1 dipertahankan)"),
     "IncomeFromPrincipalEmployer": ("saat_pengajuan", "Y", "fitur", "Pendapatan bulanan dari pekerjaan utama saat pengajuan (0% missing)"),
     "IncomeFromPension": ("saat_pengajuan", "Y", "fitur", "Pendapatan bulanan dari pensiun saat pengajuan (0% missing)"),
@@ -191,12 +191,12 @@ FINAL_AUDIT_SPEC: dict[str, tuple[str, str, str, str]] = {
     "DebtToIncome": ("saat_pengajuan", "Y", "fitur", "Rasio utang terhadap pendapatan saat pengajuan (0.03% missing)"),
     "FreeCash": ("saat_pengajuan", "Y", "fitur", "Sisa kas bebas bulanan saat pengajuan (0.03% missing)"),
     "MonthlyPaymentDay": ("saat_pengajuan", "Y", "fitur", "Tanggal jatuh tempo bulanan yang dipilih saat pengajuan (0% missing)"),
-    "CreditScoreEsMicroL": ("saat_pengajuan", "Y", "fitur", "Skor biro kredit eksternal MicroL (83.09% terisi lintas negara; category + CreditScoreEsMicroL_missing)"),
+    "CreditScoreEsMicroL": ("saat_pengajuan", "Y", "fitur", "Skor biro kredit eksternal MicroL (83.09% terisi lintas negara; category, tetap Y dan diuji lewat ablasi di Tahap 4, sedangkan CreditScoreEsMicroL_missing berperan proxy_era [N])"),
     "CreditScoreFiAsiakasTietoRiskGrade": ("saat_pengajuan", "Y", "fitur", "Grade risiko AsiakasTieto Finlandia (99.69% terisi pada populasi FI; category tanpa indikator missing)"),
     "CreditScoreEeMini": ("saat_pengajuan", "Y", "fitur", "Skor kredit mini Estonia (94.93% terisi pada populasi EE; skala numerik float64 tanpa indikator missing)"),
     "NoOfPreviousLoansBeforeLoan": ("saat_pengajuan", "Y", "fitur", "Jumlah pinjaman Bondora sebelumnya sebelum pengajuan ini (0.005% missing)"),
     "AmountOfPreviousLoansBeforeLoan": ("saat_pengajuan", "Y", "fitur", "Total nominal pinjaman Bondora sebelumnya sebelum pengajuan ini (0.005% missing)"),
-    "PreviousRepaymentsBeforeLoan": ("saat_pengajuan", "Y", "fitur", "Total pembayaran pada pinjaman sebelumnya (sisa missing 4.15% setelah aturan domain; disertai indikator _missing)"),
+    "PreviousRepaymentsBeforeLoan": ("saat_pengajuan", "Y", "fitur", "Total pembayaran pada pinjaman sebelumnya (sisa missing 4.15% setelah aturan domain; tetap Y dan diuji lewat ablasi di Tahap 4, sedangkan PreviousRepaymentsBeforeLoan_missing berperan proxy_era [N])"),
     "PreviousEarlyRepaymentsBefoleLoan": ("saat_pengajuan", "Y", "fitur", "Total pelunasan dipercepat pada pinjaman sebelumnya (sisa missing 0.94% setelah aturan domain; tanpa indikator)"),
     "PreviousEarlyRepaymentsCountBeforeLoan": ("saat_pengajuan", "Y", "fitur", "Frekuensi pelunasan dipercepat pada pinjaman sebelumnya (0.005% missing)"),
 }
@@ -635,7 +635,8 @@ def build_clean_dataset(
             "kolom_sesudah": df.shape[1],
             "jumlah_nilai_diubah": len(df) * 3,
             "alasan": (
-                f"Indikator missing >1% non-struktural: MonthlyPayment_missing ({int(miss_ind_df['MonthlyPayment_missing'].sum()):,}), "
+                f"Indikator missing >1% non-struktural (peran proxy_era, boleh_jadi_fitur=N karena terkonsentrasi per era pada Tahap 2): "
+                f"MonthlyPayment_missing ({int(miss_ind_df['MonthlyPayment_missing'].sum()):,}), "
                 f"PreviousRepaymentsBeforeLoan_missing ({int(miss_ind_df['PreviousRepaymentsBeforeLoan_missing'].sum()):,}), "
                 f"CreditScoreEsMicroL_missing ({int(miss_ind_df['CreditScoreEsMicroL_missing'].sum()):,})"
             ),
@@ -654,6 +655,23 @@ def build_clean_dataset(
             }
             for col in raw_cols
         ]
+        for miss_col in (
+            "MonthlyPayment_missing",
+            "PreviousRepaymentsBeforeLoan_missing",
+            "CreditScoreEsMicroL_missing",
+        ):
+            base_c = miss_col.replace("_missing", "")
+            audit_rows.append(
+                {
+                    "nama_kolom": miss_col,
+                    "kategori": "proxy_era",
+                    "boleh_jadi_fitur": "N",
+                    "alasan": (
+                        f"Indikator boolean nilai kosong untuk {base_c}; terbukti terkonsentrasi per era (LoanDate) pada Tahap 2 "
+                        f"sehingga berperan proxy_era (boleh_jadi_fitur=N). Kolom asli {base_c} tetap Y untuk diuji lewat ablasi di Tahap 4"
+                    ),
+                }
+            )
         pd.DataFrame(audit_rows).to_csv(TABLES_DIR / "leakage_audit.csv", index=False, encoding="utf-8")
 
     y_orig_cols = [c for c, spec in FINAL_AUDIT_SPEC.items() if spec[1] == "Y"]
@@ -759,7 +777,13 @@ def build_clean_dataset(
         elif col.startswith("flag_"):
             kat, boleh, peran_sc, alasan = ("flag_kualitas", "N", "flag", f"Kolom flag penanda nilai tak wajar/anomali ({col})")
         elif col.endswith("_missing"):
-            kat, boleh, peran_sc, alasan = ("indikator_missing", "Y", "fitur", f"Indikator boolean nilai kosong untuk fitur ({col})")
+            base_c = col.replace("_missing", "")
+            kat, boleh, peran_sc, alasan = (
+                "indikator_missing",
+                "N",
+                "proxy_era",
+                f"Indikator boolean nilai kosong untuk {base_c}; terbukti terkonsentrasi per era pada Tahap 2 (proxy_era, boleh_jadi_fitur=N). Kolom asli {base_c} tetap Y untuk diuji lewat ablasi di Tahap 4",
+            )
         elif col in (
             "loan_to_income_ratio",
             "monthly_payment_to_income_ratio",
