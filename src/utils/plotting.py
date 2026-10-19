@@ -117,7 +117,7 @@ def save_fig(
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     clean_name = name.strip()
-    if not clean_name.startswith("02_"):
+    if not (len(clean_name) >= 3 and clean_name[:2].isdigit() and clean_name[2] == "_"):
         clean_name = f"02_{clean_name}"
     if not clean_name.lower().endswith(".png"):
         clean_name = f"{clean_name}.png"
