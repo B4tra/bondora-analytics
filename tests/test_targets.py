@@ -16,6 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.config import DATA_RAW, LOANDATA_FILENAME
 from src.data.build_clean import build_clean_dataset
 from src.data.targets import (
+    make_default_horizon_label,
     make_default_label,
     make_is_resolved,
     make_regression_target,
@@ -103,6 +104,58 @@ def test_make_regression_target_no_inf_and_exact_ratio(sample_loans_df: pd.DataF
     # Row 6 (Amount == 0) and Row 7 (Amount is NaN) must be NaN
     assert np.isnan(ratios.iloc[6])
     assert np.isnan(ratios.iloc[7])
+
+
+def test_make_default_horizon_label_edge_cases() -> None:
+    """Verify make_default_horizon_label handles boundary, post-horizon, unobservable, invalid date, and write-off cases."""
+    df_mini = pd.DataFrame(
+        {
+            "LoanDate": [
+                "2019-01-15",  # 0: Default exactly on 12m boundary (2020-01-15) -> obs=True, default_12m=1
+                "2019-01-15",  # 1: Default 1 day after 12m boundary (2020-01-16) -> obs=True, default_12m=0
+                "2019-01-15",  # 2: No DefaultDate, Current, observable 12m -> obs=True, default_12m=0
+                "2021-01-15",  # 3: Unobservable for 12m (2022-01-15 > 2021-07-20) -> obs=False, default_12m=NA
+                "2019-06-10",  # 4: DefaultDate < LoanDate (2019-05-01 < 2019-06-10) -> obs=True, default_12m=NA
+                "2019-03-01",  # 5: Repaid without DefaultDate, PrincipalWriteOffs > 0 -> obs=True, default_12m=NA
+                "2019-03-01",  # 6: Repaid without DefaultDate, PrincipalWriteOffs == 0 -> obs=True, default_12m=0
+            ],
+            "DefaultDate": [
+                "2020-01-15",
+                "2020-01-16",
+                np.nan,
+                "2021-04-01",
+                "2019-05-01",
+                np.nan,
+                np.nan,
+            ],
+            "Status": [
+                "Late",
+                "Late",
+                "Current",
+                "Late",
+                "Late",
+                "Repaid",
+                "Repaid",
+            ],
+            "PrincipalWriteOffs": [0.0, 0.0, 0.0, 0.0, 0.0, 120.0, 0.0],
+        }
+    )
+
+    obs_12, def_12 = make_default_horizon_label(df_mini, months=12, report_date="2021-07-20")
+
+    assert obs_12.dtype == bool
+    assert obs_12.name == "observable_12m"
+    assert str(def_12.dtype) == "Int8"
+    assert def_12.name == "default_12m"
+
+    assert obs_12.tolist() == [True, True, True, False, True, True, True]
+    assert def_12.iloc[0] == 1       # Exact boundary -> 1
+    assert def_12.iloc[1] == 0       # After boundary -> 0
+    assert def_12.iloc[2] == 0       # Observable without DefaultDate -> 0
+    assert pd.isna(def_12.iloc[3])   # Unobservable -> NA
+    assert pd.isna(def_12.iloc[4])   # DefaultDate < LoanDate -> NA
+    assert pd.isna(def_12.iloc[5])   # Write-off without DefaultDate -> NA
+    assert def_12.iloc[6] == 0       # Repaid without write-off -> 0
 
 
 @pytest.mark.skipif(
