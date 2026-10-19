@@ -51,6 +51,10 @@ STATUS_LATE: str = "Late"
 DEFAULT_TARGET_COL: str = "default"
 REGRESSION_TARGET_COL: str = "return_ratio"
 IS_RESOLVED_COL: str = "is_resolved"
+OBSERVABLE_12M_COL: str = "observable_12m"
+DEFAULT_12M_COL: str = "default_12m"
+OBSERVABLE_24M_COL: str = "observable_24m"
+DEFAULT_24M_COL: str = "default_24m"
 
 # Columns dropped from bondora_clean.parquet (4 columns 100% missing + 1 constant snapshot column)
 DROPPED_COLUMNS: list[str] = [

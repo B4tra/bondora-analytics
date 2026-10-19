@@ -11,10 +11,14 @@ import pandas as pd
 
 from src.config import (
     DATA_PROCESSED,
+    DEFAULT_12M_COL,
+    DEFAULT_24M_COL,
     DEFAULT_DATE_COL,
     DEFAULT_TARGET_COL,
     DROPPED_COLUMNS,
     IS_RESOLVED_COL,
+    OBSERVABLE_12M_COL,
+    OBSERVABLE_24M_COL,
     REGRESSION_TARGET_COL,
     REPORT_DATE,
     STATUS_COL,
@@ -25,6 +29,7 @@ from src.config import (
 )
 from src.data.loader import load_raw
 from src.data.targets import (
+    make_default_horizon_label,
     make_default_label,
     make_is_resolved,
     make_regression_target,
@@ -329,7 +334,7 @@ def build_clean_dataset(
     Returns
     -------
     pd.DataFrame
-        Reloaded and verified ``bondora_clean`` DataFrame (``179,235 x 126``).
+        Reloaded and verified ``bondora_clean`` DataFrame (``179,235 x 130``).
     """
     df_raw = load_raw() if raw_df is None else raw_df.copy()
     raw_cols = list(df_raw.columns)
@@ -398,6 +403,43 @@ def build_clean_dataset(
             "kolom_sesudah": df.shape[1],
             "jumlah_nilai_diubah": n_date_converted,
             "alasan": "Mengubah string tanggal menjadi datetime64[ns] (0 gagal parse)",
+        }
+    )
+    step_no += 1
+
+    # 2b. Fixed-horizon default labels (12m and 24m) for Tahap 3 Diagnostic Analytics
+    cols_before_horizon = df.shape[1]
+    s_obs_12m, s_def_12m = make_default_horizon_label(df, months=12, report_date=REPORT_DATE)
+    s_obs_24m, s_def_24m = make_default_horizon_label(df, months=24, report_date=REPORT_DATE)
+    df = pd.concat(
+        [
+            df,
+            pd.DataFrame(
+                {
+                    OBSERVABLE_12M_COL: s_obs_12m,
+                    DEFAULT_12M_COL: s_def_12m,
+                    OBSERVABLE_24M_COL: s_obs_24m,
+                    DEFAULT_24M_COL: s_def_24m,
+                },
+                index=df.index,
+            ),
+        ],
+        axis=1,
+    )
+    cleaning_log_rows.append(
+        {
+            "urutan": step_no,
+            "langkah": "Langkah 3b (Tahap 3): Pembentukan label default berhorizon tetap (observable_12m, default_12m, observable_24m, default_24m)",
+            "baris_sebelum": len(df),
+            "baris_sesudah": len(df),
+            "kolom_sebelum": cols_before_horizon,
+            "kolom_sesudah": df.shape[1],
+            "jumlah_nilai_diubah": len(df) * 4,
+            "alasan": (
+                f"Mengatasi bias seleksi right-censoring dgn horizon tetap sejak LoanDate (REPORT_DATE={REPORT_DATE}): "
+                f"12m observable={int(s_obs_12m.sum()):,}, default_12m=1 ({int((s_def_12m == 1).sum()):,}), 0 ({int((s_def_12m == 0).sum()):,}), NA ({int(s_def_12m.isna().sum()):,}); "
+                f"24m observable={int(s_obs_24m.sum()):,}, default_24m=1 ({int((s_def_24m == 1).sum()):,}), 0 ({int((s_def_24m == 0).sum()):,}), NA ({int(s_def_24m.isna().sum()):,})"
+            ),
         }
     )
     step_no += 1
@@ -697,6 +739,22 @@ def build_clean_dataset(
                 "N",
                 "flag_censoring",
                 "Penanda apakah hasil akhir pinjaman sudah diketahui (True=masuk pemodelan prediktif)",
+            )
+        elif col in (OBSERVABLE_12M_COL, OBSERVABLE_24M_COL):
+            h_str = "12" if col == OBSERVABLE_12M_COL else "24"
+            kat, boleh, peran_sc, alasan = (
+                "target_turunan",
+                "N",
+                "flag_censoring",
+                f"Penanda boolean apakah pinjaman telah teramati penuh sepanjang horizon {h_str} bulan sejak LoanDate sampai REPORT_DATE ({REPORT_DATE})",
+            )
+        elif col in (DEFAULT_12M_COL, DEFAULT_24M_COL):
+            h_str = "12" if col == DEFAULT_12M_COL else "24"
+            kat, boleh, peran_sc, alasan = (
+                "target_turunan",
+                "N",
+                "target_horizon",
+                f"Variabel target gagal bayar berhorizon tetap {h_str} bulan (Int8 nullable: 1 jika DefaultDate <= LoanDate + {h_str} bulan, 0 jika teramati {h_str} bulan tanpa default <= {h_str} bulan, NA jika belum teramati {h_str} bulan / Repaid write-off tanpa DefaultDate / DefaultDate < LoanDate)",
             )
         elif col.startswith("flag_"):
             kat, boleh, peran_sc, alasan = ("flag_kualitas", "N", "flag", f"Kolom flag penanda nilai tak wajar/anomali ({col})")

@@ -110,7 +110,7 @@ def test_make_regression_target_no_inf_and_exact_ratio(sample_loans_df: pd.DataF
     reason="Raw dataset data/raw/LoanData.csv is not available.",
 )
 def test_build_clean_dataset_integration(tmp_path: Path) -> None:
-    """Integration test verifying build_clean_dataset produces 179,235 x 126 and exact Int8 default counts."""
+    """Integration test verifying build_clean_dataset produces 179,235 x 130 and exact Int8 default counts."""
     out_parquet = tmp_path / "bondora_clean.parquet"
     out_schema = tmp_path / "schema.json"
 
@@ -120,8 +120,12 @@ def test_build_clean_dataset_integration(tmp_path: Path) -> None:
         save_tables=False,
     )
 
-    assert df_clean.shape == (179_235, 126)
+    assert df_clean.shape == (179_235, 130)
     assert str(df_clean["default"].dtype) == "Int8"
     assert int(df_clean["default"].notna().sum()) == 113_560
     assert int(df_clean["default"].sum()) == 71_864
     assert int(df_clean["default"].isna().sum()) == 65_675
+    assert str(df_clean["default_12m"].dtype) == "Int8"
+    assert str(df_clean["default_24m"].dtype) == "Int8"
+    assert df_clean["observable_12m"].dtype == bool
+    assert df_clean["observable_24m"].dtype == bool
