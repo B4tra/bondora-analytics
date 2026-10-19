@@ -1,0 +1,19 @@
+fitur_1,fitur_2,n_pasangan,spearman_rho,abs_rho,alasan_domain
+PreviousEarlyRepaymentsBefoleLoan,PreviousEarlyRepaymentsCountBeforeLoan,177548,0.999507,0.999507,Total nominal pelunasan dipercepat berasosiasi langsung dengan frekuensi pelunasan dipercepat (keduanya 0 bila belum pernah)
+DebtToIncome,FreeCash,179185,0.973657,0.973657,Keduanya dihitung pada skema pengajuan lama (sebelum 2018) dan bernilai 0 secara struktural sejak 2018
+AppliedAmount,Amount,179235,0.966694,0.966694,Amount adalah jumlah pokok yang dicairkan dari AppliedAmount (sebagian besar pinjaman didanai 100% sesuai pengajuan)
+NoOfPreviousLoansBeforeLoan,AmountOfPreviousLoansBeforeLoan,179226,0.949465,0.949465,Total nominal pinjaman sebelumnya merupakan akumulasi dari jumlah frekuensi pinjaman sebelumnya
+AmountOfPreviousLoansBeforeLoan,avg_previous_loan_amount,179220,0.932834,0.932834,avg_previous_loan_amount = AmountOfPreviousLoansBeforeLoan / NoOfPreviousLoansBeforeLoan (keduanya 0 pada peminjam baru)
+AmountOfPreviousLoansBeforeLoan,PreviousRepaymentsBeforeLoan,171787,0.923328,0.923328,Total pembayaran sebelumnya proporsional terhadap total nominal pinjaman sebelumnya
+PreviousRepaymentsBeforeLoan,avg_previous_loan_amount,171781,0.912905,0.912905,Keduanya membedakan peminjam berulang vs peminjam baru (bernilai 0 pada peminjam baru)
+IncomeFromPrincipalEmployer,FreeCash,179185,0.90563,0.90563,"Pada rezim pencatatan sebelum 2018, baik IncomeFromPrincipalEmployer maupun FreeCash terisi aktif, dan bernilai 0 sejak 2018"
+IncomeFromPrincipalEmployer,DebtToIncome,179185,0.896223,0.896223,Keduanya tercatat aktif sebelum 2018 dan bernilai 0 pada mayoritas baris sejak perubahan pencatatan 2018
+NoOfPreviousLoansBeforeLoan,PreviousRepaymentsBeforeLoan,171787,0.891619,0.891619,"Peminjam dengan riwayat pinjaman sebelumnya memiliki akumulasi pembayaran sebelumnya (>0), sedangkan peminjam baru bernilai 0"
+LiabilitiesTotal,total_liabilities_to_income_ratio,179171,0.891256,0.891256,total_liabilities_to_income_ratio didefinisikan langsung sebagai LiabilitiesTotal / IncomeTotal
+AppliedAmount,MonthlyPayment,172545,0.855497,0.855497,Cicilan bulanan (MonthlyPayment) proporsional terhadap nilai pengajuan pinjaman (AppliedAmount)
+loan_to_income_ratio,monthly_payment_to_income_ratio,172535,0.849707,0.849707,Kedua rasio membagi besaran pinjaman/cicilan dengan penyebut yang sama (IncomeTotal)
+ExistingLiabilities,total_liabilities_to_income_ratio,179171,0.830682,0.830682,Jumlah kewajiban aktif berasosiasi kuat dengan rasio total kewajiban terhadap pendapatan
+NoOfPreviousLoansBeforeLoan,avg_previous_loan_amount,179220,0.819717,0.819717,Keduanya bernilai 0 secara struktural bagi peminjam pertama kali (NoOfPreviousLoansBeforeLoan == 0)
+MonthlyPayment,monthly_payment_to_income_ratio,172535,0.815484,0.815484,monthly_payment_to_income_ratio didefinisikan langsung sebagai MonthlyPayment / IncomeTotal
+Amount,MonthlyPayment,172545,0.815028,0.815028,"Cicilan bulanan (MonthlyPayment) merupakan fungsi langsung dari pokok pinjaman (Amount), suku bunga, dan tenor"
+AppliedAmount,loan_to_income_ratio,179171,0.811462,0.811462,loan_to_income_ratio didefinisikan langsung sebagai AppliedAmount / IncomeTotal
