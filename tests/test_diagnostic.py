@@ -169,3 +169,48 @@ def test_mannwhitney_auc_direction_and_logrank() -> None:
     )
     assert lr["chi2_stat"] > 3.84
     assert lr["p_value"] < 0.05
+
+
+def test_tenor_before_after_alignment_and_km_note() -> None:
+    """Verify tenor lifetime totals (n=113,560, default=71,864) and KM cause-specific note."""
+    t2_csv = PROJECT_ROOT / "reports" / "tables" / "02_default_rate_by_segment.csv"
+    t3_csv = PROJECT_ROOT / "reports" / "tables" / "03_default_rate_horizon_by_segment.csv"
+    km_csv = PROJECT_ROOT / "reports" / "tables" / "03_km_cumulative_default.csv"
+
+    assert t2_csv.exists() and t3_csv.exists() and km_csv.exists()
+
+    df_t2 = pd.read_csv(t2_csv)
+    dur_t2 = df_t2.loc[df_t2["variabel"] == "LoanDuration_group"].set_index("segmen")
+
+    df_t3 = pd.read_csv(t3_csv)
+    dur_t3_life = df_t3.loc[df_t3["variabel"] == "LoanDuration_group_lifetime"].set_index("segmen")
+
+    expected_tenor = {
+        "<= 12 bulan": (7424, 2041, 27.49),
+        "13–24 bulan": (7428, 2722, 36.65),
+        "25–36 bulan": (36114, 23551, 65.21),
+        "37–59 bulan": (8207, 5465, 66.59),
+        "60 bulan": (54387, 38085, 70.03),
+    }
+
+    assert int(dur_t2["n"].sum()) == 113_560
+    assert int(dur_t2["n_default"].sum()) == 71_864
+    assert int(dur_t3_life["n"].sum()) == 113_560
+    assert int(dur_t3_life["n_default"].sum()) == 71_864
+
+    for seg, (exp_n, exp_def, exp_pct) in expected_tenor.items():
+        assert int(dur_t2.loc[seg, "n"]) == exp_n
+        assert int(dur_t2.loc[seg, "n_default"]) == exp_def
+        assert round(float(dur_t2.loc[seg, "default_rate"]) * 100, 2) == exp_pct
+        assert int(dur_t3_life.loc[seg, "n"]) == exp_n
+        assert int(dur_t3_life.loc[seg, "n_default"]) == exp_def
+        assert round(float(dur_t3_life.loc[seg, "default_rate"]) * 100, 2) == exp_pct
+
+    df_km = pd.read_csv(km_csv)
+    expected_note = (
+        "Insiden kumulatif dengan pelunasan dini sebagai penyensoran (cause-specific); "
+        "bukan probabilitas default aktual. Untuk probabilitas aktual gunakan rate_12m_langsung."
+    )
+    assert "keterangan" in df_km.columns
+    assert (df_km["keterangan"] == expected_note).all()
+

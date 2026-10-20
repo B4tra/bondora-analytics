@@ -64,4 +64,4 @@
 - **Predictive — Regresi:** `TODO: RMSE, MAE, R-squared.`
 - **Prescriptive:** `TODO: Perbandingan performa portofolio hasil optimasi terhadap baseline strategi naif.`
 - **Semantic:** `TODO: Validitas skema ontologi RDF/OWL dan keberhasilan eksekusi query kompetensi SPARQL.`
-- **Deliverables Akhir:** `TODO: 7 Notebook Jupyter terverifikasi, Laporan Word (.docx), dan Dashboard Streamlit interaktif.`
+- **Deliverables Akhir:** `TODO: 7 Notebook Jupyter terverifikasi, Deck Laporan (PPT), dan Dashboard Streamlit interaktif.`
