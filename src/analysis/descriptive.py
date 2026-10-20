@@ -273,11 +273,13 @@ def default_rate_by(
     group_col: str,
     weight_col: str = AMOUNT_COL,
     min_n: int = 200,
+    target_col: str = DEFAULT_TARGET_COL,
 ) -> pd.DataFrame:
-    """Compute default rate, 95% Wilson CI, and amount-weighted default rate on resolved loans.
+    """Compute default rate, 95% Wilson CI, and amount-weighted default rate on valid target rows.
 
-    Strictly filters to rows where ``default`` is non-NA (and ``is_resolved == True``
-    if present). Groups with ``n < min_n`` are merged into ``"Lainnya"``.
+    Strictly filters to rows where ``target_col`` is non-NA (and ``is_resolved == True``
+    when ``target_col == DEFAULT_TARGET_COL`` and ``is_resolved`` is present).
+    Groups with ``n < min_n`` are merged into ``"Lainnya"``.
 
     Parameters
     ----------
@@ -290,6 +292,8 @@ def default_rate_by(
     min_n : int, default 200
         Minimum sample size ``n`` required to keep a segment separate; smaller
         segments are combined into ``"Lainnya"``.
+    target_col : str, default DEFAULT_TARGET_COL
+        Binary target column name (e.g., ``"default"``, ``"default_12m"``, ``"default_24m"``).
 
     Returns
     -------
@@ -301,13 +305,15 @@ def default_rate_by(
     if group_col not in df.columns:
         raise KeyError(f"Column '{group_col}' not found in DataFrame.")
 
-    if DEFAULT_TARGET_COL in df.columns:
-        s_def = df[DEFAULT_TARGET_COL]
-    else:
+    if target_col in df.columns:
+        s_def = df[target_col]
+    elif target_col == DEFAULT_TARGET_COL:
         s_def = make_default_label(df)
+    else:
+        raise KeyError(f"Target column '{target_col}' not found in DataFrame.")
 
     mask_res = s_def.notna()
-    if IS_RESOLVED_COL in df.columns:
+    if target_col == DEFAULT_TARGET_COL and IS_RESOLVED_COL in df.columns:
         mask_res = mask_res & (df[IS_RESOLVED_COL] == True)  # noqa: E712
 
     sub = df.loc[mask_res].copy()

@@ -27,18 +27,18 @@ AppliedAmount,saat_pengajuan,Y,Jumlah pinjaman yang diajukan peminjam pada formu
 Amount,saat_pengajuan,Y,Jumlah pokok pinjaman yang dicairkan saat kontrak dimulai (0% missing; disetujui di Gerbang 2)
 Interest,saat_pengajuan,N,Suku bunga pinjaman yang ditetapkan platform; disimpan sebagai peran = pricing untuk Tahap 5
 LoanDuration,saat_pengajuan,Y,Durasi/tenor pinjaman awal dalam bulan (0% missing)
-MonthlyPayment,saat_pengajuan,Y,Cicilan bulanan terjadwal saat pengajuan (3.73% missing; disertai MonthlyPayment_missing)
+MonthlyPayment,saat_pengajuan,Y,"Cicilan bulanan terjadwal saat pengajuan (3.73% missing; tetap Y dan diuji lewat ablasi di Tahap 4, sedangkan MonthlyPayment_missing berperan proxy_era [N])"
 County,saat_pengajuan,N,100% kosong (dihapus oleh Bondora untuk privasi/GDPR); dibuang dari parquet
 City,saat_pengajuan,N,100% kosong (dihapus oleh Bondora untuk privasi/GDPR); dibuang dari parquet
-UseOfLoan,saat_pengajuan,Y,"Kode tujuan penggunaan pinjaman saat pengajuan (0% missing; category, kode -1 dipertahankan)"
+UseOfLoan,saat_pengajuan,Y,"Kode tujuan penggunaan pinjaman saat pengajuan (0% missing; category, kode -1 dipertahankan; catatan Tahap 3: hampir seluruhnya 'Not set' [-1] sejak 2018 dan perlu perlakuan khusus di Tahap 4)"
 Education,saat_pengajuan,Y,"Kode tingkat pendidikan peminjam saat pengajuan (0.03% missing; category, kode -1 dipertahankan)"
-MaritalStatus,saat_pengajuan,Y,"Kode status pernikahan peminjam saat pengajuan (0.03% missing; category, kode -1 dipertahankan)"
+MaritalStatus,saat_pengajuan,Y,"Kode status pernikahan peminjam saat pengajuan (0.03% missing; category, kode -1 dipertahankan; catatan Tahap 3: hampir seluruhnya 'Not set' [-1] sejak 2018 dan perlu perlakuan khusus di Tahap 4)"
 NrOfDependants,saat_pengajuan,N,Missing 80.14% (> ambang 50% pada populasi relevan)
-EmploymentStatus,saat_pengajuan,Y,"Kode status pekerjaan peminjam saat pengajuan (0.11% missing; category, kode -1 dipertahankan)"
+EmploymentStatus,saat_pengajuan,Y,"Kode status pekerjaan peminjam saat pengajuan (0.11% missing; category, kode -1 dipertahankan; catatan Tahap 3: hampir seluruhnya 'Not set' [-1] sejak 2018 dan perlu perlakuan khusus di Tahap 4)"
 EmploymentDurationCurrentEmployer,saat_pengajuan,Y,Kategori lama bekerja di pemberi kerja saat ini (0.90% missing; category)
 EmploymentPosition,saat_pengajuan,N,100% kosong (dihapus oleh Bondora untuk privasi/GDPR); dibuang dari parquet
 WorkExperience,saat_pengajuan,N,Missing 79.62% (> ambang 50% pada populasi relevan)
-OccupationArea,saat_pengajuan,Y,"Kode bidang pekerjaan peminjam saat pengajuan (0.05% missing; category, kode -1 dipertahankan)"
+OccupationArea,saat_pengajuan,Y,"Kode bidang pekerjaan peminjam saat pengajuan (0.05% missing; category, kode -1 dipertahankan; catatan Tahap 3: hampir seluruhnya 'Not set' [-1] sejak 2018 dan perlu perlakuan khusus di Tahap 4)"
 HomeOwnershipType,saat_pengajuan,Y,"Kode status kepemilikan tempat tinggal peminjam (0.92% missing; category, kode -1 dipertahankan)"
 IncomeFromPrincipalEmployer,saat_pengajuan,Y,Pendapatan bulanan dari pekerjaan utama saat pengajuan (0% missing)
 IncomeFromPension,saat_pengajuan,Y,Pendapatan bulanan dari pensiun saat pengajuan (0% missing)
@@ -87,7 +87,7 @@ Status,hasil_target,N,Status pinjaman pada tanggal laporan (Current/Late/Repaid)
 Restructured,pasca_pinjaman,N,Status apakah pinjaman pernah direstrukturisasi selama masa pinjaman
 ActiveLateCategory,pasca_pinjaman,N,Kategori keterlambatan aktif pada tanggal laporan
 WorseLateCategory,pasca_pinjaman,N,Kategori keterlambatan terburuk sepanjang umur pinjaman
-CreditScoreEsMicroL,saat_pengajuan,Y,Skor biro kredit eksternal MicroL (83.09% terisi lintas negara; category + CreditScoreEsMicroL_missing)
+CreditScoreEsMicroL,saat_pengajuan,Y,"Skor biro kredit eksternal MicroL (83.09% terisi lintas negara; category, tetap Y dan diuji lewat ablasi di Tahap 4, sedangkan CreditScoreEsMicroL_missing berperan proxy_era [N])"
 CreditScoreEsEquifaxRisk,saat_pengajuan,N,"Hanya terisi 46.51% pada populasi relevan (Spanyol), tidak memenuhi ambang 50%"
 CreditScoreFiAsiakasTietoRiskGrade,saat_pengajuan,Y,Grade risiko AsiakasTieto Finlandia (99.69% terisi pada populasi FI; category tanpa indikator missing)
 CreditScoreEeMini,saat_pengajuan,Y,Skor kredit mini Estonia (94.93% terisi pada populasi EE; skala numerik float64 tanpa indikator missing)
@@ -99,7 +99,7 @@ PrincipalBalance,pasca_pinjaman,N,Sisa saldo pokok terutang pada tanggal laporan
 InterestAndPenaltyBalance,pasca_pinjaman,N,Sisa saldo bunga dan denda terutang pada tanggal laporan
 NoOfPreviousLoansBeforeLoan,saat_pengajuan,Y,Jumlah pinjaman Bondora sebelumnya sebelum pengajuan ini (0.005% missing)
 AmountOfPreviousLoansBeforeLoan,saat_pengajuan,Y,Total nominal pinjaman Bondora sebelumnya sebelum pengajuan ini (0.005% missing)
-PreviousRepaymentsBeforeLoan,saat_pengajuan,Y,Total pembayaran pada pinjaman sebelumnya (sisa missing 4.15% setelah aturan domain; disertai indikator _missing)
+PreviousRepaymentsBeforeLoan,saat_pengajuan,Y,"Total pembayaran pada pinjaman sebelumnya (sisa missing 4.15% setelah aturan domain; tetap Y dan diuji lewat ablasi di Tahap 4, sedangkan PreviousRepaymentsBeforeLoan_missing berperan proxy_era [N])"
 PreviousEarlyRepaymentsBefoleLoan,saat_pengajuan,Y,Total pelunasan dipercepat pada pinjaman sebelumnya (sisa missing 0.94% setelah aturan domain; tanpa indikator)
 PreviousEarlyRepaymentsCountBeforeLoan,saat_pengajuan,Y,Frekuensi pelunasan dipercepat pada pinjaman sebelumnya (0.005% missing)
 GracePeriodStart,pasca_pinjaman,N,Tanggal mulai masa tenggang (grace period) selama pinjaman berjalan
@@ -111,3 +111,6 @@ ReScheduledOn,pasca_pinjaman,N,Tanggal penjadwalan ulang pinjaman pasca pencaira
 PrincipalDebtServicingCost,pasca_pinjaman,N,Biaya penagihan utang pokok pasca gagal bayar
 InterestAndPenaltyDebtServicingCost,pasca_pinjaman,N,Biaya penagihan utang bunga dan denda pasca gagal bayar
 ActiveLateLastPaymentCategory,pasca_pinjaman,N,Kategori keterlambatan pembayaran terakhir pada saat laporan
+MonthlyPayment_missing,proxy_era,N,Indikator boolean nilai kosong untuk MonthlyPayment; terbukti terkonsentrasi per era (LoanDate) pada Tahap 2 sehingga berperan proxy_era (boleh_jadi_fitur=N). Kolom asli MonthlyPayment tetap Y untuk diuji lewat ablasi di Tahap 4
+PreviousRepaymentsBeforeLoan_missing,proxy_era,N,Indikator boolean nilai kosong untuk PreviousRepaymentsBeforeLoan; terbukti terkonsentrasi per era (LoanDate) pada Tahap 2 sehingga berperan proxy_era (boleh_jadi_fitur=N). Kolom asli PreviousRepaymentsBeforeLoan tetap Y untuk diuji lewat ablasi di Tahap 4
+CreditScoreEsMicroL_missing,proxy_era,N,Indikator boolean nilai kosong untuk CreditScoreEsMicroL; terbukti terkonsentrasi per era (LoanDate) pada Tahap 2 sehingga berperan proxy_era (boleh_jadi_fitur=N). Kolom asli CreditScoreEsMicroL tetap Y untuk diuji lewat ablasi di Tahap 4

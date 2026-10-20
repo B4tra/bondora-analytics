@@ -1,6 +1,6 @@
 # Bondora Peer-to-Peer (P2P) Lending Analytics
 
-Proyek analisis komprehensif pada dataset pinjaman Peer-to-Peer (P2P) **Bondora** yang mencakup lima pilar analitik data (**Descriptive, Diagnostic, Predictive, Prescriptive, dan Semantic Analytics**). Hasil akhir proyek ini diwujudkan dalam bentuk rangkaian **Notebook Jupyter**, **Laporan Akhir (.docx)**, serta **Dashboard Interaktif Streamlit**.
+Proyek analisis komprehensif pada dataset pinjaman Peer-to-Peer (P2P) **Bondora** yang mencakup lima pilar analitik data (**Descriptive, Diagnostic, Predictive, Prescriptive, dan Semantic Analytics**). Hasil akhir proyek ini diwujudkan dalam bentuk rangkaian **Notebook Jupyter**, **Deck Laporan (PPT)**, serta **Dashboard Interaktif Streamlit**.
 
 ---
 
@@ -39,7 +39,8 @@ bondora-analytics/
 │   ├── config.py
 │   ├── analysis/
 │   │   ├── __init__.py
-│   │   └── descriptive.py
+│   │   ├── descriptive.py
+│   │   └── diagnostic.py
 │   ├── data/
 │   │   ├── __init__.py
 │   │   ├── loader.py
@@ -124,7 +125,7 @@ data/raw/
 
 Lihat panduan lengkap, daftar file yang dibutuhkan (`LoanData.csv` dan opsional `RepaymentsData.csv`), serta tabel pencatatan metadata unduhan pada dokumen [`data/README.md`](data/README.md).
 
-Untuk menjalankan seluruh alur pembersihan data Tahap 1 dan menghasilkan `data/processed/bondora_clean.parquet` beserta `data/processed/schema.json`, jalankan perintah satu baris berikut:
+Untuk menjalankan seluruh alur pembersihan data Tahap 1–3 dan menghasilkan `data/processed/bondora_clean.parquet` (`179.235 × 130`, termasuk label gagal bayar berhorizon tetap `observable_12m`, `default_12m`, `observable_24m`, `default_24m`) beserta `data/processed/schema.json` (`44` kandidat fitur `boleh_jadi_fitur = Y`), jalankan perintah satu baris berikut:
 
 ```bash
 python -m src.data.build_clean
@@ -139,12 +140,12 @@ python -m src.data.build_clean
 | **Tahap 0** | Persiapan Proyek & Environment | Struktur repo, `.venv`, instalasi paket, konfigurasi, template notebook & dokumen | **Selesai** |
 | **Tahap 1** | Data Understanding & Preprocessing | Eksplorasi skema, pembersihan data, penanganan *missing values* & *data leakage* (`01_data_understanding.ipynb`) | **Selesai** |
 | **Tahap 2** | Descriptive Analytics | Statistik deskriptif & visualisasi distribusi portofolio (`02_descriptive.ipynb`) | **Selesai** |
-| **Tahap 3** | Diagnostic Analytics | Uji hipotesis, analisis korelasi, dan faktor penyebab *default* (`03_diagnostic.ipynb`) | Belum |
+| **Tahap 3** | Diagnostic Analytics | Label horizon tetap (12m/24m), uji hipotesis, IV, korelasi/VIF, PSI antar-era, Kaplan–Meier, & audit *fairness* (`03_diagnostic.ipynb`) | **Selesai** |
 | **Tahap 4** | Predictive Analytics | Pemodelan klasifikasi *default* & regresi beserta evaluasi SHAP (`04_*.ipynb`, `05_*.ipynb`) | Belum |
 | **Tahap 5** | Prescriptive Analytics | Optimasi alokasi portofolio pinjaman dengan `PuLP` (`06_prescriptive.ipynb`) | Belum |
 | **Tahap 6** | Semantic Analytics | Perancangan ontologi RDF/OWL, *knowledge graph*, dan query SPARQL (`07_semantic.ipynb`, `ontology/`) | Belum |
 | **Tahap 7** | Dashboard Interaktif | Pembuatan aplikasi web interaktif menggunakan Streamlit (`dashboard/`) | Belum |
-| **Tahap 8** | Laporan Akhir & Finalisasi | Penyusunan laporan akhir (`.docx`) dan pemeriksaan reproduktifitas menyeluruh (`reports/`) | Belum |
+| **Tahap 8** | Laporan Akhir & Finalisasi | Penyusunan deck laporan (PPT) dan pemeriksaan reproduktifitas menyeluruh (`reports/`) | Belum |
 
 ---
 
@@ -186,8 +187,53 @@ python -m src.data.build_clean
 | `reports/figures/02_return_ratio_by_outcome.png` | Histogram dan boxplot distribusi `return_ratio` antara pinjaman `Default` dan `Lunas tanpa default` pada subset *resolved*. |
 | `reports/figures/02_principal_recovery_distribution.png` | Proporsi pinjaman default dengan `PrincipalRecovery > 0` dan distribusi rasio pemulihan pokok (`PrincipalRecovery / Amount`). |
 
-### c. Daftar Pilihan (15 Tabel & Grafik) untuk Laporan Utama (`.docx`)
+### c. Daftar Pilihan (15 Tabel & Grafik) untuk Deck Laporan (PPT)
 - **4 Tabel:** `02_kpi_portofolio.csv`, `02_outcome_by_year.csv`, `02_default_rate_by_segment.csv`, `02_return_ratio_summary.csv`.
 - **11 Grafik:** `02_outcome_composition.png`, `02_numeric_distributions_pinjaman.png`, `02_country_distribution.png`, `02_loan_volume_trend.png`, `02_country_mix_by_year.png`, `02_sentinel_and_model_version_by_year.png`, `02_outcome_mix_by_year.png`, `02_missing_indicators_by_year.png`, `02_default_rate_utama.png`, `02_default_rate_demografi_pinjaman.png`, `02_return_ratio_by_outcome.png` *(catatan: `02_rating_pd_vs_observed.png` ditunda untuk dianalisis dengan horizon 1 tahun yang setara pada Tahap 3/4)*.
+
+---
+
+## 7. Daftar Tabel dan Grafik Tahap 3 (Diagnostic Analytics) & Penjelasan Label Horizon Tetap
+
+### a. Penjelasan Label Gagal Bayar Berhorizon Tetap (`12m` & `24m`)
+Untuk mengatasi bias seleksi waktu pengamatan (*right-censoring*) pada pinjaman bertenor panjang (36–60 bulan) dari kohort terbaru yang masih berstatus `Current`, `build_clean.py` menambahkan 4 kolom target/flag horizon tetap berdasarkan `REPORT_DATE = 2021-07-20`:
+- **`observable_12m` (`bool`, `148.783` baris `True`) & `default_12m` (`Int8` nullable, `148.369` baris valid):** Bernilai `1` (`43.117` baris; `29,06%`) jika `DefaultDate <= LoanDate + 12 bulan`; `0` (`105.252` baris) jika teramati penuh 12 bulan tanpa default dalam 12 bulan pertama; `<NA>` (`30.866` baris) jika belum teramati 12 bulan (`30.452` baris) atau termasuk `448` pinjaman `Repaid` *write-off* tanpa `DefaultDate` (`414` baris di dalam `observable_12m`).
+- **`observable_24m` (`bool`, `98.027` baris `True`) & `default_24m` (`Int8` nullable, `97.878` baris valid):** Uji sensitivitas horizon 24 bulan dengan `44.584` baris `default_24m = 1` (`45,55%`), `53.294` baris `0`, dan `81.357` baris `<NA>`.
+
+### b. Tabel Ringkasan (`reports/tables/03_*.csv` — 12 Tabel)
+
+| Nama File | Deskripsi Satu Baris |
+| :--- | :--- |
+| `reports/tables/03_horizon_label_summary.csv` | Ringkasan per `loan_year` (`2009–2021` + `Total`): `n_total`, `n_observable_12m`, `n_valid_12m`, `n_default_12m`, `rate_12m`, `n_observable_24m`, `rate_24m`, dan perbandingan terhadap `rate_resolved_lifetime`. |
+| `reports/tables/03_default_rate_horizon_by_segment.csv` | Profil default rate 12m dan 24m (serta pembanding `LoanDuration_group_lifetime` `n = 113.560`, `default = 71.864`) beserta CI Wilson 95% dan bobot `Amount` lintas segmen fitur kandidat dan kolom referensi non-fitur (`Rating`, `Interest_group`, `Gender`). |
+| `reports/tables/03_rating_vs_observed_12m.csv` | Perbandingan sebanding horizon 1 tahun antara rata-rata/median `ProbabilityOfDefault` Bondora dan `observed_default_rate_12m` per kelas `Rating` (`AA` s.d. `HR` + `Tidak tersedia`). |
+| `reports/tables/03_benchmark_auc.csv` | ROC-AUC benchmark `ProbabilityOfDefault` terhadap `default_12m` beserta CI *bootstrap* 95% (200 iterasi, `RANDOM_SEED = 42`) untuk seluruh populasi teramati (`0,6998`) dan per era (`<=2016`, `2017`, `>=2018`). |
+| `reports/tables/03_hypothesis_tests.csv` | Hasil uji Chi-square (kategorikal, Cramér's V) dan Mann–Whitney U (numerik, AUC univariat) terhadap `default_12m` untuk 44 fitur kandidat lengkap dengan koreksi uji berganda Holm (`p_holm`). |
+| `reports/tables/03_driver_ranking.csv` | Peringkat eksploratif 44 fitur kandidat menurut *Information Value* (`iv_semua`, `iv_era1` 2009–2017, `iv_era2` 2018–2020), kategori IV, `auc_univariat`, `cramers_v`, dan catatan pergeseran era. |
+| `reports/tables/03_return_ratio_drivers.csv` | Asosiasi fitur numerik (korelasi Spearman + `p_holm`) dan kategorikal (Kruskal–Wallis + rentang median antar kelompok) terhadap `return_ratio` pada subset `is_resolved == True` (`n = 113.560`). |
+| `reports/tables/03_high_correlation_pairs.csv` | Daftar 19 pasangan fitur numerik kandidat dengan korelasi Spearman $\|\rho_s\| \ge 0,80$ beserta penjelasan domain sebagai acuan penyaringan fitur di Tahap 4. |
+| `reports/tables/03_vif.csv` | Nilai *Variance Inflation Factor* (VIF) dan $R^2$ multivariat untuk 31 fitur numerik kandidat (dengan imputasi median sementara khusus perhitungan VIF). |
+| `reports/tables/03_psi_by_era.csv` | Nilai *Population Stability Index* (PSI) untuk 44 fitur kandidat dengan kohort referensi `2009–2016` terhadap kohort `2017` dan `2018–2020`. |
+| `reports/tables/03_km_cumulative_default.csv` | Tabel *number at risk* (`6, 12, 24, 36` bulan), insiden kumulatif Kaplan–Meier $1 - S(t)$, perbandingan dengan `rate_12m`/`rate_24m` langsung, dan uji *log-rank* terkoreksi Holm (`Country`, `Rating`, `LoanDuration_group`, `cohort_era`). Keterangan: *"Insiden kumulatif dengan pelunasan dini sebagai penyensoran (cause-specific); bukan probabilitas default aktual. Untuk probabilitas aktual gunakan rate_12m_langsung."* |
+| `reports/tables/03_fairness_summary.csv` | Ringkasan transparansi keadilan deskriptif (`Gender` dengan kode asli + `TODO: label resmi`, `Age_group`, `Country`) terhadap `default_12m` beserta selisih mutlak, rasio, dan Cramér's V. |
+
+### c. Grafik Visualisasi (`reports/figures/03_*.png` — 9 Grafik)
+
+| Nama File | Deskripsi Satu Baris |
+| :--- | :--- |
+| `reports/figures/03_horizon_default_rate_by_year.png` | Perbandingan tren tingkat gagal bayar per kohort tahun pencairan dan kelompok tenor (`LoanDuration_group`): `default_12m` vs `default_24m` vs `resolved lifetime` (Tahap 2: `<=12` `7.424 / 27,49%`, `13-24` `7.428 / 36,65%`, `25-36` `36.114 / 65,21%`, `37-59` `8.207 / 66,59%`, `60` `54.387 / 70,03%`; total `n = 113.560`, `default = 71.864`). |
+| `reports/figures/03_default_rate_horizon_utama.png` | Profil default rate 12 bulan vs 24 bulan (dengan CI Wilson 95%) menurut `Country`, `NewCreditCustomer`, `VerificationType`, `Age_group`, `IncomeTotal_quartile`, dan `Amount_quartile`. |
+| `reports/figures/03_default_rate_horizon_tenor_dan_demografi.png` | Profil default rate 12 bulan vs 24 bulan menurut 5 kelompok tenor (`LoanDuration_group`, disertai pembanding *resolved lifetime* Tahap 2), `Education`, `EmploymentStatus`, `HomeOwnershipType`, `UseOfLoan` (pra-2018), dan `Rating`. |
+| `reports/figures/03_rating_pd_vs_observed_12m.png` | Evaluasi kalibrasi rata-rata `ProbabilityOfDefault` Bondora vs tingkat gagal bayar 12 bulan teramati per kelas `Rating` dan kurva ROC benchmark per era. |
+| `reports/figures/03_driver_ranking_iv.png` | Grafik batang horizontal 20 fitur kandidat teratas menurut *Information Value* (IV) keseluruhan beserta perbandingan IV Era 1 (`2009–2017`) vs Era 2 (`2018–2020`). |
+| `reports/figures/03_correlation_heatmap.png` | Peta panas (*heatmap*) matriks korelasi peringkat Spearman antar 31 fitur numerik kandidat (`boleh_jadi_fitur = Y`). |
+| `reports/figures/03_psi_by_era.png` | Grafik batang horizontal *Population Stability Index* (PSI) fitur kandidat pada kohort `2017` dan `2018–2020` terhadap referensi `2009–2016`. |
+| `reports/figures/03_km_country_and_rating.png` | Kurva insiden kumulatif gagal bayar Kaplan–Meier $1 - S(t)$ hingga 36 bulan menurut `Country` dan kelas `Rating` (`AA` s.d. `HR`). Keterangan: *"Insiden kumulatif dengan pelunasan dini sebagai penyensoran (cause-specific); bukan probabilitas default aktual. Untuk probabilitas aktual gunakan rate_12m_langsung."* |
+| `reports/figures/03_km_tenor_and_cohort.png` | Kurva insiden kumulatif gagal bayar Kaplan–Meier $1 - S(t)$ hingga 36 bulan menurut kelompok tenor (`LoanDuration_group`) dan era kohort pencairan (`cohort_era`). Keterangan: *"Insiden kumulatif dengan pelunasan dini sebagai penyensoran (cause-specific); bukan probabilitas default aktual. Untuk probabilitas aktual gunakan rate_12m_langsung."* |
+
+### d. Daftar Pilihan untuk Deck Laporan (PPT) — Tahap 3
+- **Tabel Utama:** `03_horizon_label_summary.csv`, `03_default_rate_horizon_by_segment.csv`, `03_rating_vs_observed_12m.csv`, `03_driver_ranking.csv`, `03_psi_by_era.csv`, `03_km_cumulative_default.csv`, `03_fairness_summary.csv`.
+- **Grafik Utama:** `03_horizon_default_rate_by_year.png`, `03_default_rate_horizon_utama.png`, `03_default_rate_horizon_tenor_dan_demografi.png`, `03_rating_pd_vs_observed_12m.png`, `03_driver_ranking_iv.png`, `03_correlation_heatmap.png`, `03_psi_by_era.png`, `03_km_country_and_rating.png`, `03_km_tenor_and_cohort.png`.
+
 
 

@@ -1,0 +1,14 @@
+dimensi,kelompok,n,n_default_12m,default_rate_12m,ci_low_95,ci_high_95,default_rate_by_amount_12m,kelompok_acuan_terendah,selisih_mutlak_vs_acuan,rasio_vs_acuan,chi2_dimensi,p_value_dimensi,cramers_v_dimensi,catatan
+Gender (TODO: label resmi),2,12122,6815,0.562201,0.553351,0.571012,0.554625,1,0.340918,2.5406,5373.815,0.0,0.190342,Gender bukan fitur model (atribut_sensitif); hanya untuk evaluasi transparansi/fairness deskriptif
+Gender (TODO: label resmi),(Missing),45,15,0.333333,0.213589,0.479295,0.070556,1,0.112051,1.5064,5373.815,0.0,0.190342,Gender bukan fitur model (atribut_sensitif); hanya untuk evaluasi transparansi/fairness deskriptif
+Gender (TODO: label resmi),0,91856,26474,0.288212,0.285292,0.29115,0.303911,1,0.066929,1.3025,5373.815,0.0,0.190342,Gender bukan fitur model (atribut_sensitif); hanya untuk evaluasi transparansi/fairness deskriptif
+Gender (TODO: label resmi),1,44346,9813,0.221283,0.217443,0.22517,0.243035,1,0.0,1.0,5373.815,0.0,0.190342,Gender bukan fitur model (atribut_sensitif); hanya untuk evaluasi transparansi/fairness deskriptif
+Age_group,< 25,12456,4272,0.342967,0.33468,0.351351,0.366957,45–54,0.069812,1.2556,216.2007,1.231534464113979e-45,0.03818,Gender bukan fitur model (atribut_sensitif); hanya untuk evaluasi transparansi/fairness deskriptif
+Age_group,25–34,40168,11740,0.292272,0.287845,0.29674,0.304796,45–54,0.019118,1.07,216.2007,1.231534464113979e-45,0.03818,Gender bukan fitur model (atribut_sensitif); hanya untuk evaluasi transparansi/fairness deskriptif
+Age_group,>= 55,23861,6939,0.290809,0.285081,0.296605,0.312693,45–54,0.017655,1.0646,216.2007,1.231534464113979e-45,0.03818,Gender bukan fitur model (atribut_sensitif); hanya untuk evaluasi transparansi/fairness deskriptif
+Age_group,35–44,40995,11720,0.285889,0.281535,0.290282,0.288895,45–54,0.012734,1.0466,216.2007,1.231534464113979e-45,0.03818,Gender bukan fitur model (atribut_sensitif); hanya untuk evaluasi transparansi/fairness deskriptif
+Age_group,45–54,30836,8423,0.273155,0.26821,0.278156,0.286114,45–54,0.0,1.0,216.2007,1.231534464113979e-45,0.03818,Gender bukan fitur model (atribut_sensitif); hanya untuk evaluasi transparansi/fairness deskriptif
+Country,SK,296,209,0.706081,0.65181,0.755072,0.716014,EE,0.53528,4.1339,16687.2705,0.0,0.335368,Gender bukan fitur model (atribut_sensitif); hanya untuk evaluasi transparansi/fairness deskriptif
+Country,ES,26183,14581,0.556888,0.550863,0.562896,0.536407,EE,0.386087,3.2604,16687.2705,0.0,0.335368,Gender bukan fitur model (atribut_sensitif); hanya untuk evaluasi transparansi/fairness deskriptif
+Country,FI,35632,13594,0.381511,0.37648,0.386567,0.386012,EE,0.210709,2.2337,16687.2705,0.0,0.335368,Gender bukan fitur model (atribut_sensitif); hanya untuk evaluasi transparansi/fairness deskriptif
+Country,EE,86258,14733,0.170802,0.168305,0.173328,0.184894,EE,0.0,1.0,16687.2705,0.0,0.335368,Gender bukan fitur model (atribut_sensitif); hanya untuk evaluasi transparansi/fairness deskriptif
