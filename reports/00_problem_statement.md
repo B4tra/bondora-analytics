@@ -46,11 +46,14 @@
 ## 4. Ruang Lingkup dan Batasan
 
 - **Ruang Lingkup:** Dataset mencakup `179.235` kontrak pinjaman Bondora dengan tanggal pencairan (`LoanDate`) dari `2009-02-28` hingga `2021-07-19` dan tanggal *snapshot* laporan (`REPORT_DATE`) `2021-07-20`, meliputi 4 negara (`EE`, `FI`, `ES`, `SK`).
-- **Batasan & Aturan Fitur (Gerbang 1, Gerbang 2, & Pembaruan Tahap 3):**
+- **Batasan & Aturan Fitur (Gerbang 1, Gerbang 2, & Pembaruan Tahap 3–4):**
   - Fitur prediktif dibatasi secara ketat pada variabel yang sudah diketahui pada saat pinjaman dicairkan (*origination*) sebelum pembayaran pertama dan bukan merupakan keluaran model internal platform (`Rating`, `ProbabilityOfDefault`, `ExpectedLoss`, `LossGivenDefault`, `ExpectedReturn`, `ModelVersion`, `EL_V*`, `Rating_V*` disimpan sebagai kolom `benchmark`) maupun sinyal pasar investor (`Bids*`) atau `Interest` (`peran = pricing`, digunakan di Tahap 5).
   - Kolom `Gender` ditandai sebagai `atribut_sensitif` (`boleh_jadi_fitur = N`) dan hanya digunakan untuk evaluasi *fairness* pada *Diagnostic Analytics*.
   - Ambang kelayakan nilai kosong (*missing value* $> 50\%$) **dihitung pada populasi relevan** (misalnya per negara untuk skor biro kredit eksternal `CreditScore*` atau setelah penerapan aturan domain riwayat pinjaman sebelumnya sejak perubahan pencatatan Bondora tahun 2018).
   - Dari `130` kolom pada `data/processed/bondora_clean.parquet`, ditetapkan **`44` kolom fitur kandidat (`boleh_jadi_fitur = Y`)**, terdiri atas `40` fitur asli saat pengajuan dan `4` fitur rasio turunan (`loan_to_income_ratio`, `monthly_payment_to_income_ratio`, `total_liabilities_to_income_ratio`, `avg_previous_loan_amount`). Ketiga indikator `*_missing` (`MonthlyPayment_missing`, `PreviousRepaymentsBeforeLoan_missing`, `CreditScoreEsMicroL_missing`) ditetapkan memiliki `boleh_jadi_fitur = N` (`peran = proxy_era`) karena terbukti terkonsentrasi per era pada Tahap 2. Empat kolom kategorikal berkode `-1 (Not set)` (`UseOfLoan`, `MaritalStatus`, `EmploymentStatus`, `OccupationArea`) tetap berstatus `Y` dengan catatan wajib diuji ablasi pada Tahap 4 karena hampir seluruhnya berkode `"Not set"` sejak 2018.
+  - **Pembagian Waktu & Set Fitur Tahap 4 (Predictive Analytics):**
+    - Pembagian data utama berbasis waktu pencairan (`LoanDate`): **Latih** `<= 2018-06-30` (`59.459` baris klasifikasi; `54.103` baris regresi), **Validasi** `2018-07-01` s.d. `2019-06-30` (`34.627` baris klasifikasi; `24.782` baris regresi), dan **Uji** `>= 2019-07-01` (`54.283` baris klasifikasi; `34.675` baris regresi).
+    - Aturan deteksi fitur **mati-era** (`share_dominan_validasi >= 0,95` dan `share_dominan_latih <= 0,80`) menyaring 8 fitur yang kolaps pada era baru (`UseOfLoan`, `MaritalStatus`, `EmploymentStatus`, `OccupationArea`, `IncomeFromPrincipalEmployer`, `DebtToIncome`, `FreeCash`, `CreditScoreEsMicroL`), menghasilkan **Set A (stabil, utama)** = `36` fitur, **Set B (lengkap)** = `44` fitur, dan **Set C (ablasi)** = `39` fitur (`Set A` + `Rating`, `ProbabilityOfDefault`, `Interest`).
 
 ## 5. Dataset yang Digunakan
 
@@ -61,7 +64,13 @@
 
 - **Descriptive & Diagnostic:** `TODO: Kelengkapan visualisasi, uji statistik, dan ketajaman temuan analitis.`
 - **Predictive — Klasifikasi:** `TODO: ROC-AUC, PR-AUC, F1-Score, Recall pada kelas default, dan interpretabilitas model (SHAP).`
+  - *Acuan Pembanding & Realisasi Tahap 4 (`default_12m`, Data Uji Temporal `n = 54.283`, Default Rate `26,77%`):*
+    - Pembanding platform: `ProbabilityOfDefault` Bondora mencapai ROC-AUC `0,6746` `[0,6699, 0,6800]` pada data uji (`0,6998` pada seluruh populasi teramati `n = 148.369`), KS `0,2718`, Brier `0,1868`, dan ECE `0,0597`; suku bunga `Interest` sebagai skor peringkat mencapai ROC-AUC `0,6851` `[0,6810, 0,6906]`.
+    - Model utama **LGBM-A terkalibrasi isotonik (`Set A`, 36 fitur)** mencapai ROC-AUC uji **`0,7152`** `[0,7107, 0,7196]` (`+0,0406` di atas `ProbabilityOfDefault` dan `+0,0301` di atas `Interest`), PR-AUC `0,4393` (`0,4468` sebelum kalibrasi), KS `0,3230`, Brier `0,1798` (membaik dari `0,1926` sebelum kalibrasi), ECE `0,0619` (membaik dari `0,1236`), serta *lift* Desil 1 sebesar `2,01x` (menangkap `20,10%` default pada 10% pinjaman risiko tertinggi). Model linear `LR-A` mencapai ROC-AUC uji `0,6964`, `LGBM-B` (`44` fitur) mencapai `0,7206`, dan `LGBM-C` (ablasi) mencapai `0,7078` (sedikit lebih rendah di uji akibat pergeseran distribusi `Rating`/`PD`/`Interest` pasca-2019). Split acak `70/15/15` menghasilkan ROC-AUC uji `0,7879` (optimisme semu `+0,0728` poin AUC karena mengabaikan pergeseran rezim waktu).
 - **Predictive — Regresi:** `TODO: RMSE, MAE, R-squared.`
+  - *Acuan Pembanding & Realisasi Tahap 4 (`return_ratio` pada `is_resolved == True`, Data Uji Temporal `n = 34.675`, Mean Aktual `0,5708`):*
+    - Pembanding naif: median global latih (`1,0366`) menghasilkan MAE uji `0,5323` ($R^2 = -1,0242$); median per `Country × Rating` menghasilkan MAE uji `0,4697` ($R^2 = -0,4868$, Spearman $\rho_s = 0,1925$); `ExpectedReturn` Bondora berkorelasi negatif pada kohort uji ($\rho_s = -0,1651$).
+    - Model utama regresi **LGBM-Reg-Huber (`Set A`, 36 fitur)** mencapai MAE uji **`0,3902`**, RMSE `0,4545`, $R^2 = 0,0252$, dan korelasi peringkat Spearman **$\rho_s = 0,2881$** (model L2 mencapai MAE `0,3934`, $\rho_s = 0,2921$; `Ridge-A` mencapai MAE `0,4159`, $\rho_s = 0,2301$), dengan rata-rata `return_ratio` aktual Desil 1 tertinggi sebesar `0,9014` (`1,58x` rata-rata populasi) dibanding Desil 10 terendah `0,4168` (selisih `+0,4846`).
 - **Prescriptive:** `TODO: Perbandingan performa portofolio hasil optimasi terhadap baseline strategi naif.`
 - **Semantic:** `TODO: Validitas skema ontologi RDF/OWL dan keberhasilan eksekusi query kompetensi SPARQL.`
 - **Deliverables Akhir:** `TODO: 7 Notebook Jupyter terverifikasi, Deck Laporan (PPT), dan Dashboard Streamlit interaktif.`
