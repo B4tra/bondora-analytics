@@ -1,0 +1,8 @@
+skema_split,split,deskripsi,n,proporsi_populasi,n_default,n_non_default,default_rate,loan_date_min,loan_date_max
+temporal,train,Latih (<= 2018-06-30),59459,0.400751,18452,41007,0.310331,2009-02-28,2018-06-30
+temporal,val,Validasi (> 2018-06-30 s.d. 2019-06-30),34627,0.233384,10133,24494,0.292633,2018-07-01,2019-06-30
+temporal,test,Uji (> 2019-06-30),54283,0.365865,14532,39751,0.267708,2019-07-01,2020-07-20
+temporal,Total,Seluruh Populasi Valid default_12m,148369,1.0,43117,105252,0.290607,2009-02-28,2020-07-20
+random_70_15_15,train,Acak Terstratifikasi Latih (70%),103858,0.699998,30182,73676,0.290608,2009-02-28,2020-07-20
+random_70_15_15,val,Acak Terstratifikasi Validasi (15%),22255,0.149998,6467,15788,0.290586,2009-03-08,2020-07-20
+random_70_15_15,test,Acak Terstratifikasi Uji (15%),22256,0.150004,6468,15788,0.290618,2009-03-01,2020-07-20

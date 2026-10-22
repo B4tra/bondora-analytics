@@ -1,0 +1,16 @@
+peringkat_shap,fitur,mean_abs_shap,mean_signed_shap,n_sampel_uji,metode
+1,Country,0.469098,0.115395,5000,shap.TreeExplainer
+2,LanguageCode,0.245452,0.072995,5000,shap.TreeExplainer
+3,PreviousRepaymentsBeforeLoan,0.106458,0.029029,5000,shap.TreeExplainer
+4,ExistingLiabilities,0.093884,0.059124,5000,shap.TreeExplainer
+5,Education,0.078574,0.017025,5000,shap.TreeExplainer
+6,CreditScoreEeMini,0.075865,-0.003298,5000,shap.TreeExplainer
+7,Age,0.073834,-0.011347,5000,shap.TreeExplainer
+8,HomeOwnershipType,0.072534,0.011358,5000,shap.TreeExplainer
+9,CreditScoreFiAsiakasTietoRiskGrade,0.070612,0.056628,5000,shap.TreeExplainer
+10,VerificationType,0.053944,-0.019513,5000,shap.TreeExplainer
+11,LiabilitiesTotal,0.040685,0.03522,5000,shap.TreeExplainer
+12,MonthlyPayment,0.03531,0.0211,5000,shap.TreeExplainer
+13,AmountOfPreviousLoansBeforeLoan,0.034505,0.011188,5000,shap.TreeExplainer
+14,total_liabilities_to_income_ratio,0.029551,0.019217,5000,shap.TreeExplainer
+15,EmploymentDurationCurrentEmployer,0.025672,-0.00409,5000,shap.TreeExplainer

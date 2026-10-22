@@ -9,8 +9,8 @@ Proyek analisis komprehensif pada dataset pinjaman Peer-to-Peer (P2P) **Bondora*
 1. **Descriptive Analytics** — Meringkas karakteristik historis portofolio pinjaman, profil demografis peminjam, distribusi suku bunga, dan tingkat gagal bayar (*default rate*).
 2. **Diagnostic Analytics** — Menganalisis akar penyebab dan hubungan statistik/korelasi faktor-faktor risiko yang membedakan pinjaman lancar dengan pinjaman gagal bayar.
 3. **Predictive Analytics**
-   - **Klasifikasi Default:** Memprediksi probabilitas gagal bayar pinjaman menggunakan algoritma *machine learning* (`scikit-learn`, `xgboost`, `lightgbm`, `imbalanced-learn`) beserta interpretasi model (`shap`).
-   - **Regresi:** Mengestimasi target finansial kontinu pada pinjaman P2P.
+   - **Klasifikasi Default:** Memprediksi probabilitas gagal bayar pinjaman 12 bulan (`default_12m`) menggunakan algoritma *machine learning* (`scikit-learn`, `lightgbm`) beserta kalibrasi probabilitas dan interpretasi model (`shap`, *permutation importance*).
+   - **Regresi:** Mengestimasi rasio pengembalian finansial kontinu (`return_ratio`) pada pinjaman P2P *resolved*.
 4. **Prescriptive Analytics** — Mengoptimalkan pemilihan dan alokasi portofolio pinjaman menggunakan pemrograman linier/optimasi matematis (`pulp`) untuk memaksimalkan imbal hasil pada batas risiko tertentu.
 5. **Semantic Analytics** — Memodelkan pengetahuan domain P2P lending ke dalam skema ontologi dan *knowledge graph* (`rdflib`, `networkx`) yang dapat di-query menggunakan SPARQL.
 
@@ -23,7 +23,7 @@ bondora-analytics/
 ├── data/
 │   ├── raw/            # file asli dari Bondora (tidak di-commit)
 │   ├── interim/        # hasil antara (tidak di-commit)
-│   ├── processed/      # data bersih (tidak di-commit)
+│   ├── processed/      # data bersih & tabel prediksi parquet (tidak di-commit)
 │   ├── external/       # data pendukung bila ada (tidak di-commit)
 │   └── README.md       # panduan unduh & metadata dataset
 ├── notebooks/
@@ -49,11 +49,18 @@ bondora-analytics/
 │   ├── features/
 │   │   ├── __init__.py
 │   │   └── basic.py
-│   ├── models/__init__.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── splits.py
+│   │   ├── features.py
+│   │   ├── pipelines.py
+│   │   ├── evaluate.py
+│   │   ├── followup.py
+│   │   └── train.py
 │   └── utils/
 │       ├── __init__.py
 │       └── plotting.py
-├── models/             # model tersimpan (tidak di-commit)
+├── models/             # model tersimpan *.joblib & train_metadata.json (tidak di-commit)
 ├── dashboard/          # aplikasi Streamlit (tahap 7)
 ├── ontology/           # file ontologi & query SPARQL (tahap 6)
 ├── reports/
@@ -62,6 +69,13 @@ bondora-analytics/
 │   └── 00_problem_statement.md
 ├── scripts/
 │   └── verify_env.py
+├── tests/
+│   ├── test_targets.py
+│   ├── test_features.py
+│   ├── test_descriptive.py
+│   ├── test_diagnostic.py
+│   ├── test_models.py
+│   └── test_followup.py
 ├── requirements.txt
 ├── requirements-dev.txt
 ├── requirements.lock.txt
@@ -115,7 +129,7 @@ Pastikan output diakhiri dengan `STATUS: OK` dan `pip check` tidak melaporkan ko
 
 ---
 
-## 4. Instruksi Penempatan Dataset & Pembuatan Data Bersih
+## 4. Instruksi Penempatan Dataset, Pembuatan Data Bersih, & Pelatihan Model
 
 Dataset **tidak disertakan di dalam repositori Git**. Silakan unduh dataset Bondora secara manual dan simpan ke dalam folder:
 
@@ -125,11 +139,25 @@ data/raw/
 
 Lihat panduan lengkap, daftar file yang dibutuhkan (`LoanData.csv` dan opsional `RepaymentsData.csv`), serta tabel pencatatan metadata unduhan pada dokumen [`data/README.md`](data/README.md).
 
+### a. Pembuatan Data Bersih (Tahap 1–3)
 Untuk menjalankan seluruh alur pembersihan data Tahap 1–3 dan menghasilkan `data/processed/bondora_clean.parquet` (`179.235 × 130`, termasuk label gagal bayar berhorizon tetap `observable_12m`, `default_12m`, `observable_24m`, `default_24m`) beserta `data/processed/schema.json` (`44` kandidat fitur `boleh_jadi_fitur = Y`), jalankan perintah satu baris berikut:
 
 ```bash
 python -m src.data.build_clean
 ```
+
+### b. Pelatihan & Evaluasi Model Prediktif Satu Perintah (Tahap 4)
+Untuk menjalankan seluruh pipeline Tahap 4 (pembagian berbasis waktu → seleksi set fitur A/B/C → pelatihan klasifikasi `LR-A`, `LGBM-A/B/C`, `LGBM-A-acak` → kalibrasi probabilitas → pelatihan regresi `Ridge`, `LGBM-Reg-L2`, `LGBM-Reg-Huber` → evaluasi metrik, SHAP, *permutation importance*, serta penyimpanan model `models/*.joblib`, tabel `reports/tables/04_*.csv` & `05_*.csv`, grafik `reports/figures/04_*.png` & `05_*.png`, dan file prediksi `data/processed/predictions_*.parquet`), jalankan:
+
+```bash
+python -m src.models.train
+```
+
+Opsi tambahan:
+- `--task {classification,regression,all}` (default: `all`)
+- `--quick` (mode uji cepat dengan iterasi pencarian hiperparameter lebih sedikit)
+
+> **Catatan Git:** Folder `models/` (`*.joblib`, `train_metadata.json`) dan berkas prediksi `data/processed/predictions_default12m.parquet` serta `data/processed/predictions_return_ratio.parquet` **tidak di-commit ke Git** (diabaikan melalui `.gitignore`) dan dihasilkan secara deterministik melalui `python -m src.models.train`.
 
 ---
 
@@ -141,7 +169,7 @@ python -m src.data.build_clean
 | **Tahap 1** | Data Understanding & Preprocessing | Eksplorasi skema, pembersihan data, penanganan *missing values* & *data leakage* (`01_data_understanding.ipynb`) | **Selesai** |
 | **Tahap 2** | Descriptive Analytics | Statistik deskriptif & visualisasi distribusi portofolio (`02_descriptive.ipynb`) | **Selesai** |
 | **Tahap 3** | Diagnostic Analytics | Label horizon tetap (12m/24m), uji hipotesis, IV, korelasi/VIF, PSI antar-era, Kaplan–Meier, & audit *fairness* (`03_diagnostic.ipynb`) | **Selesai** |
-| **Tahap 4** | Predictive Analytics | Pemodelan klasifikasi *default* & regresi beserta evaluasi SHAP (`04_*.ipynb`, `05_*.ipynb`) | Belum |
+| **Tahap 4** | Predictive Analytics | Pemodelan klasifikasi *default* 12m & regresi `return_ratio`, kalibrasi probabilitas, evaluasi SHAP & subgrup (`04_*.ipynb`, `05_*.ipynb`, `src/models/`) | **Selesai** |
 | **Tahap 5** | Prescriptive Analytics | Optimasi alokasi portofolio pinjaman dengan `PuLP` (`06_prescriptive.ipynb`) | Belum |
 | **Tahap 6** | Semantic Analytics | Perancangan ontologi RDF/OWL, *knowledge graph*, dan query SPARQL (`07_semantic.ipynb`, `ontology/`) | Belum |
 | **Tahap 7** | Dashboard Interaktif | Pembuatan aplikasi web interaktif menggunakan Streamlit (`dashboard/`) | Belum |
@@ -235,5 +263,52 @@ Untuk mengatasi bias seleksi waktu pengamatan (*right-censoring*) pada pinjaman 
 - **Tabel Utama:** `03_horizon_label_summary.csv`, `03_default_rate_horizon_by_segment.csv`, `03_rating_vs_observed_12m.csv`, `03_driver_ranking.csv`, `03_psi_by_era.csv`, `03_km_cumulative_default.csv`, `03_fairness_summary.csv`.
 - **Grafik Utama:** `03_horizon_default_rate_by_year.png`, `03_default_rate_horizon_utama.png`, `03_default_rate_horizon_tenor_dan_demografi.png`, `03_rating_pd_vs_observed_12m.png`, `03_driver_ranking_iv.png`, `03_correlation_heatmap.png`, `03_psi_by_era.png`, `03_km_country_and_rating.png`, `03_km_tenor_and_cohort.png`.
 
+---
 
+## 8. Daftar Tabel, Grafik, dan Artefak Tahap 4 (Predictive Analytics)
 
+### a. Tabel Ringkasan Klasifikasi & Regresi (`reports/tables/04_*.csv` & `05_*.csv` — 18 Tabel)
+
+| Nama File | Deskripsi Satu Baris |
+| :--- | :--- |
+| `reports/tables/04_split_summary.csv` | Ringkasan ukuran, proporsi default (`default_12m`), dan rentang tanggal `LoanDate` pada split berbasis waktu (`train <= 2018-06-30`, `val 2018-07-01..2019-06-30`, `test >= 2019-07-01`) dan split acak terstratifikasi `70/15/15`. |
+| `reports/tables/04_feature_sets.csv` | Definisi 44 fitur kandidat beserta keanggotaan **Set A** (`36` fitur stabil), **Set B** (`44` fitur lengkap), **Set C** (`39` fitur ablasi + `Rating`, `ProbabilityOfDefault`, `Interest` — tidak menambah AUC; penurunan di uji `-0,0074` kecil dan penyebabnya belum dibuktikan), proporsi nilai dominan latih vs validasi, PSI `2018–2020`, dan alasan keluar 8 fitur *mati-era*. |
+| `reports/tables/04_metrics_classification.csv` | Metrik evaluasi klasifikasi (`ROC-AUC` + CI bootstrap 95%, `PR-AUC`, `Gini`, `KS`, `Brier`, `Log Loss`, `ECE` 10-bin, ambang Youden validasi, matriks konfusi, `Precision/Recall` Top-10%/20%/30%, serta penanda `cakupan_evaluasi`: metrik kalibrasi pada validasi bersifat *in-sample*, dan metrik uji yang dipakai untuk pelaporan) untuk semua model dan pembanding (`ProbabilityOfDefault`, `Interest`). |
+| `reports/tables/04_auc_comparisons.csv` | Selisih ROC-AUC berpasangan (*paired bootstrap* 200 iterasi, CI 95%) pada data uji antara `LGBM-A` terhadap `LGBM-B`, `LGBM-C`, `LR-A`, `ProbabilityOfDefault`, dan `Interest`. |
+| `reports/tables/04_lift_by_decile.csv` | Tabel *lift* dan *cumulative recall/gain* 10 desil pada data uji (`n = 54.283`) untuk model utama `LGBM-A` terkalibrasi. |
+| `reports/tables/04_subgroup_performance.csv` | Evaluasi ROC-AUC (dengan CI bootstrap 95%), Brier, KS, dan kalibrasi rata-rata prediksi vs default rate aktual per subgrup (`Country` `EE`, `FI`, `ES` berdampingan dengan pembanding `ProbabilityOfDefault` Bondora dan `Interest` beserta selisih AUC berpasangan + CI 95%, `LoanDuration_group`, `NewCreditCustomer`, dan paruh waktu uji `Jul–Des 2019` vs `Jan–Jul 2020`). |
+| `reports/tables/04_level_bias.csv` | Perbandingan rata-rata `p_calibrated` (`LGBM-A`), `p_raw`, dan `PD_bondora` terhadap tingkat gagal bayar 12 bulan aktual pada validasi (*in-sample*: `29,26%` vs `29,26%`) dan uji (*out-of-sample*: `32,96%` vs `26,77%`, level terlalu tinggi `+6,19 pp`), serta pada uji menurut `Country`, paruh waktu (`Jul–Des 2019`, `Jan–Jul 2020`), dan `Country × paruh_waktu_uji` (urutan risiko lebih andal daripada level). |
+| `reports/tables/04_nan_signal_shap.csv` | Pemeriksaan `NaN` sebagai sinyal era: perbandingan rata-rata SHAP dan tingkat gagal bayar baris `NaN` vs non-`NaN` pada sampel SHAP uji (`n = 5.000`) dan latih (`n = 5.000`) untuk `PreviousRepaymentsBeforeLoan`, `MonthlyPayment`, `monthly_payment_to_income_ratio`, `CreditScoreFiAsiakasTietoRiskGrade`, dan `CreditScoreEeMini`. |
+| `reports/tables/04_nan_signal_refit.csv` | Hasil eksperimen latih ulang `LGBM-A` satu kali dengan hiperparameter terbaik yang sama dan nilai `NaN` pada 5 fitur terkonsentrasi-era diisi konstan tunggal data latih (ROC-AUC uji `0,7164` vs model utama `0,7152`, selisih `+0,0012` `[+0,0005, +0,0019]`; model utama tidak diganti). |
+| `reports/tables/04_shap_top15.csv` | 15 fitur teratas menurut rata-rata nilai mutlak SHAP (`mean_abs_shap`) model `LGBM-A` pada sampel acak `5.000` baris uji. |
+| `reports/tables/04_permutation_importance.csv` | Peringkat seluruh 36 fitur Set A menurut penurunan ROC-AUC validasi (*permutation importance*, 5 ulangan). |
+| `reports/tables/04_lr_top15_coefficients.csv` | 15 koefisien terstandarisasi terbesar pada model linear `LR-A` beserta arah pengaruh terhadap risiko gagal bayar. |
+| `reports/tables/04_driver_ranking_train_only.csv` | Perbandingan *Information Value* (IV) yang dihitung murni pada data latih (`<= 2018-06-30`) terhadap peringkat IV eksploratif seluruh populasi dari Tahap 3. |
+| `reports/tables/04_local_explanations_examples.csv` | Dekomposisi kontribusi SHAP lokal pada 3 contoh pinjaman uji (risiko rendah `~P10`, risiko menengah `~Median`, dan risiko tinggi `~P90`). |
+| `reports/tables/05_split_summary.csv` | Ringkasan ukuran, default rate *lifetime*, serta rata-rata dan kuartil `return_ratio` pada split waktu regresi (`is_resolved == True`, `n = 113.560`). |
+| `reports/tables/05_metrics_regression.csv` | Metrik evaluasi regresi (`MAE`, `RMSE`, $R^2$, korelasi peringkat Spearman $\rho_s$, rata-rata Desil 1 vs Desil 10, serta `MAE`/`RMSE` terpisah untuk pinjaman default vs non-default; rata-rata prediksi uji `0,6746` vs aktual `0,5708`, gunakan sebagai urutan) untuk pembanding naif, `ExpectedReturn`, `Ridge-A`, `LGBM-Reg-L2`, dan `LGBM-Reg-Huber`. |
+| `reports/tables/05_lift_by_decile.csv` | Tabel *lift* 10 desil prediksi `return_ratio` pada data uji (`n = 34.675`) beserta rata-rata/median `return_ratio` aktual dan tingkat default per desil. |
+| `reports/tables/05_shap_top15.csv` | 15 fitur teratas menurut rata-rata nilai mutlak SHAP (`mean_abs_shap`) pada model regresi utama (`LGBM-Reg-Huber`) pada sampel acak `5.000` baris uji. |
+
+### b. Grafik Visualisasi (`reports/figures/04_*.png` & `05_*.png` — 8 Grafik)
+
+| Nama File | Deskripsi Satu Baris |
+| :--- | :--- |
+| `reports/figures/04_roc_curves.png` | Kurva ROC pada data uji untuk `LGBM-A`, `LGBM-B`, `LGBM-C`, `LR-A`, `LGBM-A-acak` (70/15/15), `ProbabilityOfDefault` Bondora, dan suku bunga `Interest`. |
+| `reports/figures/04_calibration_curve.png` | Kurva reliabilitas (10 bin) sebelum dan sesudah kalibrasi (Platt vs Isotonik) serta distribusi probabilitas prediksi pada data uji. |
+| `reports/figures/04_lift_by_decile.png` | Grafik batang tingkat default aktual vs prediksi per desil risiko dan kurva *cumulative recall* (`LGBM-A` pada data uji). |
+| `reports/figures/04_shap_summary_bar.png` | Perbandingan 15 fitur terpenting `LGBM-A` menurut `Mean |SHAP|` (data uji) dan *Permutation Importance* (penurunan AUC validasi). |
+| `reports/figures/04_subgroup_performance.png` | Profil ROC-AUC (beserta CI 95%) dan perbandingan rata-rata probabilitas terkalibrasi vs default rate aktual lintas subgrup data uji. |
+| `reports/figures/05_pred_vs_actual_and_lift.png` | Diagram pencar (*scatter*) prediksi vs aktual `return_ratio` (sampel uji `n = 3.000`) dan rata-rata `return_ratio` aktual vs prediksi per desil (`D1` tertinggi s.d. `D10` terendah). |
+| `reports/figures/05_residuals_by_country_and_rating.png` | Boxplot distribusi residual (`Aktual - Prediksi`) model regresi utama menurut `Country` dan kelas `Rating` pada data uji. |
+| `reports/figures/05_shap_top15_regression.png` | Grafik batang horizontal 15 fitur terpenting model regresi utama (`LGBM-Reg-Huber`) menurut rata-rata nilai mutlak SHAP pada sampel uji (`n = 5.000`). |
+
+### c. Artefak Model & Tabel Prediksi (Tidak Di-commit ke Git)
+- **Model Tersimpan (`models/`):** `lgbm_default12m_setA.joblib`, `lr_default12m_setA.joblib`, `lgbm_return_ratio_setA.joblib`, `ridge_return_ratio_setA.joblib`, dan `train_metadata.json`.
+- **Tabel Prediksi (`data/processed/`):**
+  - `data/processed/predictions_default12m.parquet` (`148.369` baris populasi valid `default_12m`; kolom `LoanId`, `split`, konteks pinjaman, `default_12m`, `p_raw`, `p_calibrated`, `p_lr`, `PD_bondora`).
+  - `data/processed/predictions_return_ratio.parquet` (`113.560` baris populasi `is_resolved == True`; kolom `LoanId`, `split`, konteks pinjaman, `return_ratio`, `pred_return_ratio`, `pred_baseline_group_median`).
+
+### d. Usulan Pilihan (9 Tabel & Grafik) untuk Deck Laporan (PPT) — Tahap 4
+- **3 Tabel:** `04_metrics_classification.csv`, `04_lift_by_decile.csv`, `05_metrics_regression.csv`.
+- **6 Grafik:** `04_roc_curves.png`, `04_calibration_curve.png`, `04_lift_by_decile.png`, `04_shap_summary_bar.png`, `04_subgroup_performance.png`, `05_pred_vs_actual_and_lift.png`.

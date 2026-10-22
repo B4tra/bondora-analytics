@@ -1,0 +1,16 @@
+peringkat_shap,fitur,mean_abs_shap,mean_signed_shap,n_sampel_uji,model_regresi,metode
+1,LanguageCode,0.090692,-0.039633,5000,LGBM-Reg-Huber,shap.TreeExplainer
+2,Country,0.072622,-0.025582,5000,LGBM-Reg-Huber,shap.TreeExplainer
+3,PreviousRepaymentsBeforeLoan,0.046816,-0.028947,5000,LGBM-Reg-Huber,shap.TreeExplainer
+4,AmountOfPreviousLoansBeforeLoan,0.046481,-0.009968,5000,LGBM-Reg-Huber,shap.TreeExplainer
+5,total_liabilities_to_income_ratio,0.035911,-0.029918,5000,LGBM-Reg-Huber,shap.TreeExplainer
+6,HomeOwnershipType,0.032158,-0.007569,5000,LGBM-Reg-Huber,shap.TreeExplainer
+7,CreditScoreFiAsiakasTietoRiskGrade,0.029905,-0.029888,5000,LGBM-Reg-Huber,shap.TreeExplainer
+8,Education,0.029439,-0.003935,5000,LGBM-Reg-Huber,shap.TreeExplainer
+9,monthly_payment_to_income_ratio,0.025153,-0.024576,5000,LGBM-Reg-Huber,shap.TreeExplainer
+10,LiabilitiesTotal,0.021352,-0.017104,5000,LGBM-Reg-Huber,shap.TreeExplainer
+11,MonthlyPayment,0.021312,-0.018066,5000,LGBM-Reg-Huber,shap.TreeExplainer
+12,EmploymentDurationCurrentEmployer,0.018931,-0.000463,5000,LGBM-Reg-Huber,shap.TreeExplainer
+13,LoanDuration,0.01563,0.000852,5000,LGBM-Reg-Huber,shap.TreeExplainer
+14,AppliedAmount,0.014438,0.000119,5000,LGBM-Reg-Huber,shap.TreeExplainer
+15,NoOfPreviousLoansBeforeLoan,0.013896,0.000943,5000,LGBM-Reg-Huber,shap.TreeExplainer

@@ -1,0 +1,5 @@
+split,deskripsi,n,proporsi_populasi,n_default_lifetime,default_rate_lifetime,mean_return_ratio,std_return_ratio,p25_return_ratio,median_return_ratio,p75_return_ratio,loan_date_min,loan_date_max
+train,Latih Resolved (<= 2018-06-30),54103,0.476427,32656,0.603589,0.913647,0.556683,0.451224,1.036649,1.266695,2009-02-28,2018-06-30
+val,Validasi Resolved (> 2018-06-30 s.d. 2019-06-30),24782,0.218228,16845,0.679727,0.671976,0.468574,0.261894,0.57735,1.077131,2018-07-01,2019-06-30
+test,Uji Resolved (> 2019-06-30),34675,0.305345,22363,0.644932,0.570775,0.460345,0.151063,0.391706,1.040463,2019-07-01,2021-07-18
+Total,Seluruh Populasi Resolved (is_resolved == True),113560,1.0,71864,0.632828,0.756213,0.533028,0.253263,0.797424,1.147674,2009-02-28,2021-07-18

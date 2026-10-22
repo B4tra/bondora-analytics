@@ -1,0 +1,6 @@
+perbandingan,populasi_uji,n,auc_a,auc_b,diff_auc,ci_low_95,ci_high_95
+LGBM-A (Set A) vs LGBM-B (Set B Lengkap),Seluruh Uji (n = 54.283),54283,0.715155,0.72058,-0.005425,-0.006314,-0.004575
+LGBM-C (Set A + Rating/PD/Interest) vs LGBM-A (Set A),Seluruh Uji (n = 54.283),54283,0.707782,0.715155,-0.007373,-0.009263,-0.005516
+LGBM-A (Set A) vs LR-A (Logistic Regression Set A),Seluruh Uji (n = 54.283),54283,0.715155,0.696369,0.018786,0.017197,0.020407
+LGBM-A (Set A) vs ProbabilityOfDefault Bondora,Irisan Benchmark Uji (n = 54283),54283,0.715155,0.674584,0.040571,0.034319,0.046109
+LGBM-A (Set A) vs Suku Bunga Interest,Irisan Benchmark Uji (n = 54283),54283,0.715155,0.685095,0.03006,0.024863,0.033385

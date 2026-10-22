@@ -27,6 +27,10 @@ RANDOM_SEED: int = 42
 # Dataset snapshot report date (from ReportAsOfEOD)
 REPORT_DATE: str = "2021-07-20"
 
+# Temporal split boundary dates for Tahap 4 (Predictive Analytics)
+SPLIT_TRAIN_END: str = "2018-06-30"
+SPLIT_VAL_END: str = "2019-06-30"
+
 # Raw dataset filenames
 # TODO: konfirmasi nama file sesuai unduhan pengguna
 LOANDATA_FILENAME: str = "LoanData.csv"

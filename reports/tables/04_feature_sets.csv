@@ -1,0 +1,48 @@
+fitur,tipe,di_set_A,di_set_B,di_set_C,alasan_keluar,nilai_dominan_validasi,share_dominan_latih,share_dominan_validasi,psi_2018_2020
+NewCreditCustomer,boolean,True,True,True,Aktif & stabil (masuk Set A),True,0.571049,0.51584,0.107
+ApplicationSignedHour,numerik,True,True,True,Aktif & stabil (masuk Set A),11,0.079685,0.079707,0.0852
+ApplicationSignedWeekday,numerik,True,True,True,Aktif & stabil (masuk Set A),3,0.18559,0.180379,0.0373
+VerificationType,kategorikal,True,True,True,Aktif & stabil (masuk Set A),4,0.477321,0.50761,2.3104
+LanguageCode,kategorikal,True,True,True,Aktif & stabil (masuk Set A),1,0.525,0.512721,0.1279
+Age,numerik,True,True,True,Aktif & stabil (masuk Set A),34,0.030963,0.029024,0.1042
+Country,kategorikal,True,True,True,Aktif & stabil (masuk Set A),EE,0.620814,0.61712,0.0865
+AppliedAmount,numerik,True,True,True,Aktif & stabil (masuk Set A),530.0,0.192065,0.20484,0.9421
+Amount,numerik,True,True,True,Aktif & stabil (masuk Set A),530.0,0.191207,0.204811,0.7986
+LoanDuration,numerik,True,True,True,Aktif & stabil (masuk Set A),60,0.380851,0.547896,0.5946
+MonthlyPayment,numerik,True,True,True,Aktif & stabil (masuk Set A),237.84,1.7e-05,0.066682,1.8142
+UseOfLoan,kategorikal,False,True,False,Mati-era: nilai dominan '-1 (Not set)' mencapai 100.00% di validasi (vs 38.48% di latih; PSI 2018-2020 = 16.5261),-1,0.384769,1.0,16.5261
+Education,kategorikal,True,True,True,Aktif & stabil (masuk Set A),4,0.406263,0.367026,0.6097
+MaritalStatus,kategorikal,False,True,False,Mati-era: nilai dominan '-1 (Not set)' mencapai 100.00% di validasi (vs 38.48% di latih; PSI 2018-2020 = 17.0376),-1,0.384769,1.0,17.0376
+EmploymentStatus,kategorikal,False,True,False,Mati-era: nilai dominan '-1 (Not set)' mencapai 100.00% di validasi (vs 38.48% di latih; PSI 2018-2020 = 17.6851),-1,0.384769,1.0,17.6851
+EmploymentDurationCurrentEmployer,kategorikal,True,True,True,Aktif & stabil (masuk Set A),MoreThan5Years,0.388453,0.390302,2.2712
+OccupationArea,kategorikal,False,True,False,Mati-era: nilai dominan '-1 (Not set)' mencapai 100.00% di validasi (vs 38.56% di latih; PSI 2018-2020 = 12.9986),-1,0.385627,1.0,12.9986
+HomeOwnershipType,kategorikal,True,True,True,Aktif & stabil (masuk Set A),1,0.33904,0.381812,1.5915
+IncomeFromPrincipalEmployer,numerik,False,True,False,Mati-era: nilai dominan '0.0' mencapai 100.00% di validasi (vs 42.38% di latih; PSI 2018-2020 = 8.2825),0.0,0.423754,1.0,8.2825
+IncomeFromPension,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.933568,1.0,0.6854
+IncomeFromFamilyAllowance,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.900604,1.0,0.6831
+IncomeFromSocialWelfare,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.969542,1.0,0.0
+IncomeFromLeavePay,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.986949,1.0,0.0
+IncomeFromChildSupport,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.978035,1.0,0.0
+IncomeOther,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.907096,1.0,0.6732
+IncomeTotal,numerik,True,True,True,Aktif & stabil (masuk Set A),1200.0,0.027801,0.043868,0.0393
+ExistingLiabilities,numerik,True,True,True,Aktif & stabil (masuk Set A),0,0.089541,0.243625,0.4434
+LiabilitiesTotal,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.093678,0.255148,1.174
+RefinanceLiabilities,numerik,True,True,True,Aktif & stabil (masuk Set A),0,0.843472,1.0,1.1165
+DebtToIncome,numerik,False,True,False,Mati-era: nilai dominan '0.0' mencapai 100.00% di validasi (vs 42.23% di latih; PSI 2018-2020 = 8.2750),0.0,0.422291,1.0,8.275
+FreeCash,numerik,False,True,False,Mati-era: nilai dominan '0.0' mencapai 100.00% di validasi (vs 42.22% di latih; PSI 2018-2020 = 8.2775),0.0,0.422241,1.0,8.2775
+MonthlyPaymentDay,numerik,True,True,True,Aktif & stabil (masuk Set A),13,0.035773,0.108875,0.2566
+CreditScoreEsMicroL,kategorikal,False,True,False,Mati-era: nilai dominan 'M' mencapai 97.63% di validasi (vs 30.60% di latih; PSI 2018-2020 = 16.6926),M,0.306009,0.976261,16.6926
+CreditScoreFiAsiakasTietoRiskGrade,kategorikal,True,True,True,Aktif & stabil (masuk Set A),(Missing),0.824669,0.669911,2.8536
+CreditScoreEeMini,numerik,True,True,True,Aktif & stabil (masuk Set A),1000.0,0.405405,0.504606,0.1527
+NoOfPreviousLoansBeforeLoan,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.523689,0.421896,0.3144
+AmountOfPreviousLoansBeforeLoan,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.523588,0.421896,0.4728
+PreviousRepaymentsBeforeLoan,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.533376,0.421896,0.6224
+PreviousEarlyRepaymentsBefoleLoan,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.925966,0.957288,0.0657
+PreviousEarlyRepaymentsCountBeforeLoan,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.925831,0.957288,0.0002
+loan_to_income_ratio,numerik,True,True,True,Aktif & stabil (masuk Set A),2.8333333333333335,0.003465,0.015277,0.0502
+monthly_payment_to_income_ratio,numerik,True,True,True,Aktif & stabil (masuk Set A),0.11892,0.0,0.005054,2.3013
+total_liabilities_to_income_ratio,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.093022,0.255148,1.9973
+avg_previous_loan_amount,numerik,True,True,True,Aktif & stabil (masuk Set A),0.0,0.523588,0.421896,0.3324
+Rating,kategorikal,False,False,True,Hanya untuk eksperimen ablasi Set C (benchmark/pricing platform),F,0.092248,0.276836,
+ProbabilityOfDefault,numerik,False,False,True,Hanya untuk eksperimen ablasi Set C (benchmark/pricing platform),0.3992503953900759,0.0,0.142634,
+Interest,numerik,False,False,True,Hanya untuk eksperimen ablasi Set C (benchmark/pricing platform),59.73,0.00037,0.192971,

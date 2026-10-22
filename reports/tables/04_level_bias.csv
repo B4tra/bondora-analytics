@@ -1,0 +1,14 @@
+cakupan,split,subgrup,n,n_default,default_12m_aktual,mean_p_raw,mean_p_calibrated,selisih_cal_minus_aktual_pp,rasio_cal_per_aktual,mean_pd_bondora,selisih_pd_minus_aktual_pp,sifat_metrik
+Seluruh,val,Seluruh,34627,10133,0.292633,0.350534,0.292633,0.0,1.0,0.278332,-1.4301,"validasi (in-sample): penyetelan hiperparameter, early stopping, kalibrator, dan ambang Youden dipelajari dari data ini; bukan untuk pelaporan"
+Seluruh,test,Seluruh,54283,14532,0.267708,0.391292,0.32959,6.1882,1.2312,0.221384,-4.6324,uji (out-of-sample): metrik yang dipakai untuk pelaporan
+Country,test,EE,27976,4241,0.151594,0.226119,0.177397,2.5803,1.1702,0.173278,2.1684,uji (out-of-sample): metrik yang dipakai untuk pelaporan
+Country,test,FI,13645,3546,0.259875,0.538628,0.468171,20.8295,1.8015,0.246702,-1.3173,uji (out-of-sample): metrik yang dipakai untuk pelaporan
+Country,test,ES,12662,6745,0.532696,0.597461,0.516514,-1.6182,0.9696,0.30039,-23.2306,uji (out-of-sample): metrik yang dipakai untuk pelaporan
+paruh_waktu_uji,test,Jul–Des 2019,35718,10588,0.296433,0.41445,0.350809,5.4376,1.1834,0.229186,-6.7247,uji (out-of-sample): metrik yang dipakai untuk pelaporan
+paruh_waktu_uji,test,Jan–Jul 2020,18565,3944,0.212443,0.346737,0.288767,7.6325,1.3593,0.206375,-0.6068,uji (out-of-sample): metrik yang dipakai untuk pelaporan
+Country x paruh_waktu_uji,test,EE | Jul–Des 2019,16813,2814,0.16737,0.228101,0.179837,1.2467,1.0745,0.171295,0.3925,uji (out-of-sample): metrik yang dipakai untuk pelaporan
+Country x paruh_waktu_uji,test,EE | Jan–Jul 2020,11163,1427,0.127833,0.223133,0.173722,4.5889,1.359,0.176264,4.8431,uji (out-of-sample): metrik yang dipakai untuk pelaporan
+Country x paruh_waktu_uji,test,FI | Jul–Des 2019,9247,2567,0.277604,0.545624,0.474103,19.65,1.7078,0.256939,-2.0664,uji (out-of-sample): metrik yang dipakai untuk pelaporan
+Country x paruh_waktu_uji,test,FI | Jan–Jul 2020,4398,979,0.222601,0.523918,0.455697,23.3096,2.0471,0.225178,0.2577,uji (out-of-sample): metrik yang dipakai untuk pelaporan
+Country x paruh_waktu_uji,test,ES | Jul–Des 2019,9658,5207,0.539139,0.613263,0.530395,-0.8744,0.9838,0.303392,-23.5746,uji (out-of-sample): metrik yang dipakai untuk pelaporan
+Country x paruh_waktu_uji,test,ES | Jan–Jul 2020,3004,1538,0.511984,0.546654,0.471888,-4.0096,0.9217,0.290739,-22.1245,uji (out-of-sample): metrik yang dipakai untuk pelaporan
