@@ -55,6 +55,7 @@ bondora-analytics/
 │   │   ├── features.py
 │   │   ├── pipelines.py
 │   │   ├── evaluate.py
+│   │   ├── followup.py
 │   │   └── train.py
 │   └── utils/
 │       ├── __init__.py
@@ -73,7 +74,8 @@ bondora-analytics/
 │   ├── test_features.py
 │   ├── test_descriptive.py
 │   ├── test_diagnostic.py
-│   └── test_models.py
+│   ├── test_models.py
+│   └── test_followup.py
 ├── requirements.txt
 ├── requirements-dev.txt
 ├── requirements.lock.txt
@@ -265,23 +267,26 @@ Untuk mengatasi bias seleksi waktu pengamatan (*right-censoring*) pada pinjaman 
 
 ## 8. Daftar Tabel, Grafik, dan Artefak Tahap 4 (Predictive Analytics)
 
-### a. Tabel Ringkasan Klasifikasi & Regresi (`reports/tables/04_*.csv` & `05_*.csv` — 14 Tabel)
+### a. Tabel Ringkasan Klasifikasi & Regresi (`reports/tables/04_*.csv` & `05_*.csv` — 18 Tabel)
 
 | Nama File | Deskripsi Satu Baris |
 | :--- | :--- |
 | `reports/tables/04_split_summary.csv` | Ringkasan ukuran, proporsi default (`default_12m`), dan rentang tanggal `LoanDate` pada split berbasis waktu (`train <= 2018-06-30`, `val 2018-07-01..2019-06-30`, `test >= 2019-07-01`) dan split acak terstratifikasi `70/15/15`. |
-| `reports/tables/04_feature_sets.csv` | Definisi 44 fitur kandidat beserta keanggotaan **Set A** (`36` fitur stabil), **Set B** (`44` fitur lengkap), **Set C** (`39` fitur ablasi + `Rating`, `ProbabilityOfDefault`, `Interest`), proporsi nilai dominan latih vs validasi, PSI `2018–2020`, dan alasan keluar 8 fitur *mati-era*. |
-| `reports/tables/04_metrics_classification.csv` | Metrik evaluasi klasifikasi (`ROC-AUC` + CI bootstrap 95%, `PR-AUC`, `Gini`, `KS`, `Brier`, `Log Loss`, `ECE` 10-bin, ambang Youden validasi, matriks konfusi, serta `Precision/Recall` Top-10%/20%/30%) untuk semua model dan pembanding (`ProbabilityOfDefault`, `Interest`). |
+| `reports/tables/04_feature_sets.csv` | Definisi 44 fitur kandidat beserta keanggotaan **Set A** (`36` fitur stabil), **Set B** (`44` fitur lengkap), **Set C** (`39` fitur ablasi + `Rating`, `ProbabilityOfDefault`, `Interest` — tidak menambah AUC; penurunan di uji `-0,0074` kecil dan penyebabnya belum dibuktikan), proporsi nilai dominan latih vs validasi, PSI `2018–2020`, dan alasan keluar 8 fitur *mati-era*. |
+| `reports/tables/04_metrics_classification.csv` | Metrik evaluasi klasifikasi (`ROC-AUC` + CI bootstrap 95%, `PR-AUC`, `Gini`, `KS`, `Brier`, `Log Loss`, `ECE` 10-bin, ambang Youden validasi, matriks konfusi, `Precision/Recall` Top-10%/20%/30%, serta penanda `cakupan_evaluasi`: metrik kalibrasi pada validasi bersifat *in-sample*, dan metrik uji yang dipakai untuk pelaporan) untuk semua model dan pembanding (`ProbabilityOfDefault`, `Interest`). |
 | `reports/tables/04_auc_comparisons.csv` | Selisih ROC-AUC berpasangan (*paired bootstrap* 200 iterasi, CI 95%) pada data uji antara `LGBM-A` terhadap `LGBM-B`, `LGBM-C`, `LR-A`, `ProbabilityOfDefault`, dan `Interest`. |
 | `reports/tables/04_lift_by_decile.csv` | Tabel *lift* dan *cumulative recall/gain* 10 desil pada data uji (`n = 54.283`) untuk model utama `LGBM-A` terkalibrasi. |
-| `reports/tables/04_subgroup_performance.csv` | Evaluasi ROC-AUC (dengan CI bootstrap 95%), Brier, KS, dan kalibrasi rata-rata prediksi vs default rate aktual per subgrup (`Country`, `LoanDuration_group`, `NewCreditCustomer`, dan paruh waktu uji `Jul–Des 2019` vs `Jan–Jul 2020`). |
+| `reports/tables/04_subgroup_performance.csv` | Evaluasi ROC-AUC (dengan CI bootstrap 95%), Brier, KS, dan kalibrasi rata-rata prediksi vs default rate aktual per subgrup (`Country` `EE`, `FI`, `ES` berdampingan dengan pembanding `ProbabilityOfDefault` Bondora dan `Interest` beserta selisih AUC berpasangan + CI 95%, `LoanDuration_group`, `NewCreditCustomer`, dan paruh waktu uji `Jul–Des 2019` vs `Jan–Jul 2020`). |
+| `reports/tables/04_level_bias.csv` | Perbandingan rata-rata `p_calibrated` (`LGBM-A`), `p_raw`, dan `PD_bondora` terhadap tingkat gagal bayar 12 bulan aktual pada validasi (*in-sample*: `29,26%` vs `29,26%`) dan uji (*out-of-sample*: `32,96%` vs `26,77%`, level terlalu tinggi `+6,19 pp`), serta pada uji menurut `Country`, paruh waktu (`Jul–Des 2019`, `Jan–Jul 2020`), dan `Country × paruh_waktu_uji` (urutan risiko lebih andal daripada level). |
+| `reports/tables/04_nan_signal_shap.csv` | Pemeriksaan `NaN` sebagai sinyal era: perbandingan rata-rata SHAP dan tingkat gagal bayar baris `NaN` vs non-`NaN` pada sampel SHAP uji (`n = 5.000`) dan latih (`n = 5.000`) untuk `PreviousRepaymentsBeforeLoan`, `MonthlyPayment`, `monthly_payment_to_income_ratio`, `CreditScoreFiAsiakasTietoRiskGrade`, dan `CreditScoreEeMini`. |
+| `reports/tables/04_nan_signal_refit.csv` | Hasil eksperimen latih ulang `LGBM-A` satu kali dengan hiperparameter terbaik yang sama dan nilai `NaN` pada 5 fitur terkonsentrasi-era diisi konstan tunggal data latih (ROC-AUC uji `0,7164` vs model utama `0,7152`, selisih `+0,0012` `[+0,0005, +0,0019]`; model utama tidak diganti). |
 | `reports/tables/04_shap_top15.csv` | 15 fitur teratas menurut rata-rata nilai mutlak SHAP (`mean_abs_shap`) model `LGBM-A` pada sampel acak `5.000` baris uji. |
 | `reports/tables/04_permutation_importance.csv` | Peringkat seluruh 36 fitur Set A menurut penurunan ROC-AUC validasi (*permutation importance*, 5 ulangan). |
 | `reports/tables/04_lr_top15_coefficients.csv` | 15 koefisien terstandarisasi terbesar pada model linear `LR-A` beserta arah pengaruh terhadap risiko gagal bayar. |
 | `reports/tables/04_driver_ranking_train_only.csv` | Perbandingan *Information Value* (IV) yang dihitung murni pada data latih (`<= 2018-06-30`) terhadap peringkat IV eksploratif seluruh populasi dari Tahap 3. |
 | `reports/tables/04_local_explanations_examples.csv` | Dekomposisi kontribusi SHAP lokal pada 3 contoh pinjaman uji (risiko rendah `~P10`, risiko menengah `~Median`, dan risiko tinggi `~P90`). |
 | `reports/tables/05_split_summary.csv` | Ringkasan ukuran, default rate *lifetime*, serta rata-rata dan kuartil `return_ratio` pada split waktu regresi (`is_resolved == True`, `n = 113.560`). |
-| `reports/tables/05_metrics_regression.csv` | Metrik evaluasi regresi (`MAE`, `RMSE`, $R^2$, korelasi peringkat Spearman $\rho_s$, rata-rata Desil 1 vs Desil 10, serta `MAE`/`RMSE` terpisah untuk pinjaman default vs non-default) untuk pembanding naif, `ExpectedReturn`, `Ridge-A`, `LGBM-Reg-L2`, dan `LGBM-Reg-Huber`. |
+| `reports/tables/05_metrics_regression.csv` | Metrik evaluasi regresi (`MAE`, `RMSE`, $R^2$, korelasi peringkat Spearman $\rho_s$, rata-rata Desil 1 vs Desil 10, serta `MAE`/`RMSE` terpisah untuk pinjaman default vs non-default; rata-rata prediksi uji `0,6746` vs aktual `0,5708`, gunakan sebagai urutan) untuk pembanding naif, `ExpectedReturn`, `Ridge-A`, `LGBM-Reg-L2`, dan `LGBM-Reg-Huber`. |
 | `reports/tables/05_lift_by_decile.csv` | Tabel *lift* 10 desil prediksi `return_ratio` pada data uji (`n = 34.675`) beserta rata-rata/median `return_ratio` aktual dan tingkat default per desil. |
 | `reports/tables/05_shap_top15.csv` | 15 fitur teratas menurut rata-rata nilai mutlak SHAP (`mean_abs_shap`) pada model regresi utama (`LGBM-Reg-Huber`) pada sampel acak `5.000` baris uji. |
 

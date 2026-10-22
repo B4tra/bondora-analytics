@@ -1397,6 +1397,13 @@ def main(argv: list[str] | None = None) -> dict[str, Any]:
 
         reg_meta = run_regression_pipeline(df, set_a_cols=set_a_cols, quick=args.quick)
 
+    if args.task in ("classification", "all"):
+        # Evaluation-only follow-up (within-country baselines, level bias, NaN-signal check); does not
+        # retrain or overwrite the primary model. Can also be run standalone: python -m src.models.followup
+        from src.models.followup import run_followup
+
+        run_followup(df)
+
     total_elapsed = round(time.perf_counter() - t_start, 2)
     meta_out = {
         "random_seed": RANDOM_SEED,
