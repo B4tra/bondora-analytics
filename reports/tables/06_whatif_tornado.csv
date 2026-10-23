@@ -1,0 +1,6 @@
+parameter,roi_low,roi_high,status_low,status_high,delta_low_pp,delta_high_pp
+"Batas rata-rata p (0,15 .. 0,30)",0.1995352469395946,0.20940589730624026,Optimal (LP + MILP pada 2 variabel pecahan; gap ke batas LP 6.07e-05),Optimal (relaksasi LP bersifat integral),-0.9870650366645667,0.0
+Pergeseran L (-10 .. +10 poin),0.22757028721938946,0.19182487346846092,Optimal (relaksasi LP bersifat integral),Optimal (relaksasi LP bersifat integral),1.8164389913149197,-1.7581023837779348
+"Batas negara (0,5 .. 1,0)",0.16455764372112366,0.2338205561548318,Optimal (LP + MILP pada 2 variabel pecahan; gap ke batas LP 9.87e-06),Optimal (relaksasi LP bersifat integral),-4.48482535851166,2.4414658848591535
+Anggaran (50% .. 200%),0.2521299630410379,0.16044414487961559,Optimal (relaksasi LP bersifat integral),Optimal (relaksasi LP bersifat integral),4.272406573479764,-4.896175242662467
+Stres p (-20% .. +50%),0.2567823674243475,0.10027161543474888,Optimal (relaksasi LP bersifat integral),Optimal (LP + MILP pada 2 variabel pecahan; gap ke batas LP 1.66e-04),4.737647011810725,-10.913428187149139
