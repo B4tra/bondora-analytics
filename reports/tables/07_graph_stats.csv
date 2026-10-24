@@ -1,0 +1,53 @@
+bagian,item,jumlah,persen_dari_total,catatan
+Ringkasan,total_triples,344904.0,100.0,Total triple dalam graf (ontologi + instans)
+Ringkasan,ontology_triples,326.0,0.09451905457750563,Triple dari ontology/bondora_ontology.ttl
+Ringkasan,instance_triples,344578.0,99.9054809454225,Triple instans pinjaman dan peminjam
+Ringkasan,reloaded_triples,344904.0,100.0,Jumlah triple saat dimuat ulang dari bondora_graph.ttl.gz (harus sama persis)
+Kinerja & File,waktu_bangun_detik,16.42,,Waktu pembangunan + serialisasi graf (detik)
+Kinerja & File,waktu_muat_ulang_detik,14.778,,Waktu muat ulang dari bondora_graph.ttl.gz (detik)
+Kinerja & File,ukuran_file_bytes,777464.0,,Ukuran bondora_graph.ttl.gz = 0.741 MB
+Individu per Kelas,bo:Loan,20000.0,,Jumlah individu bertipe bo:Loan
+Individu per Kelas,bo:Borrower,7709.0,,Jumlah individu bertipe bo:Borrower
+Individu per Kelas,bo:Country,4.0,,Jumlah individu bertipe bo:Country
+Individu per Kelas,bo:RatingClass,9.0,,Jumlah individu bertipe bo:RatingClass
+Individu per Kelas,bo:RiskTier,4.0,,Jumlah individu bertipe bo:RiskTier
+Individu per Kelas,bo:OutcomeGroup,4.0,,Jumlah individu bertipe bo:OutcomeGroup
+Individu per Kelas,bo:Era,2.0,,Jumlah individu bertipe bo:Era
+Individu per Kelas,bo:TenorBand,5.0,,Jumlah individu bertipe bo:TenorBand
+Individu per Kelas,bo:RiskBand,3.0,,Jumlah individu bertipe bo:RiskBand
+Individu per Kelas,bo:Strategy,1.0,,Jumlah individu bertipe bo:Strategy
+Triple per Predikat,rdf:type,27800.0,8.060213856609376,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:amount,20000.0,5.798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:hasBorrower,20000.0,5.798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:hasOutcome,20000.0,5.798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:hasTenorBand,20000.0,5.798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:inEra,20000.0,5.798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:inRiskBand,20000.0,5.798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:interestPct,20000.0,5.798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:isResolved,20000.0,5.798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:loanDate,20000.0,5.798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:loanDurationMonths,20000.0,5.798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:originatedIn,20000.0,5.798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:predictedDefaultProb12m,20000.0,5.798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:ratedAs,20000.0,5.798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:defaultWithin12m,17455.0,5.0608285203998795,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:precededBy,12291.0,3.563600306172152,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:returnRatio,9976.0,2.8923990443717673,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:borrowerCountry,7709.0,2.235114698582794,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:selectedBy,5000.0,1.4496787511887366,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:defaultDate,4438.0,1.2867348595551225,Jumlah triple dengan predikat ini
+Triple per Predikat,rdfs:comment,68.0,0.019715631016166815,Jumlah triple dengan predikat ini
+Triple per Predikat,rdfs:label,68.0,0.019715631016166815,Jumlah triple dengan predikat ini
+Triple per Predikat,rdfs:domain,20.0,0.005798715004754947,Jumlah triple dengan predikat ini
+Triple per Predikat,rdfs:range,20.0,0.005798715004754947,Jumlah triple dengan predikat ini
+Triple per Predikat,skos:inScheme,17.0,0.004928907754041704,Jumlah triple dengan predikat ini
+Triple per Predikat,bo:ordinalRank,9.0,0.0026094217521397257,Jumlah triple dengan predikat ini
+Triple per Predikat,skos:broader,9.0,0.0026094217521397257,Jumlah triple dengan predikat ini
+Triple per Predikat,rdfs:subClassOf,6.0,0.0017396145014264839,Jumlah triple dengan predikat ini
+Triple per Predikat,owl:onProperty,5.0,0.0014496787511887367,Jumlah triple dengan predikat ini
+Triple per Predikat,owl:hasValue,4.0,0.0011597430009509893,Jumlah triple dengan predikat ini
+Triple per Predikat,owl:equivalentClass,3.0,0.0008698072507132419,Jumlah triple dengan predikat ini
+Triple per Predikat,rdf:first,2.0,0.0005798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,rdf:rest,2.0,0.0005798715004754946,Jumlah triple dengan predikat ini
+Triple per Predikat,owl:someValuesFrom,1.0,0.0002899357502377473,Jumlah triple dengan predikat ini
+Triple per Predikat,owl:unionOf,1.0,0.0002899357502377473,Jumlah triple dengan predikat ini

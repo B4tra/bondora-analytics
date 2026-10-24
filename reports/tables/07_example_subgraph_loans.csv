@@ -1,0 +1,4 @@
+label_peminjam,label_graf,LoanNumber,loan_date_str,default_date_str,Country,rating_clean,risk_tier,outcome_code,p_calibrated,in_s3,prev_loan_number
+Peminjam A,Pinjaman 1,1571624,2019-10-20,2020-11-09,ES,E,TingkatTinggi,Default,0.535852,False,
+Peminjam A,Pinjaman 2,1752900,2019-12-21,2020-11-09,ES,F,TingkatTinggi,Default,0.485952,False,1571624.0
+Peminjam A,Pinjaman 3,1933569,2020-02-22,2020-11-09,ES,F,TingkatTinggi,Default,0.357276,True,1752900.0

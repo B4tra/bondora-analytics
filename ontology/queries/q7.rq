@@ -1,0 +1,15 @@
+# Pertanyaan Bisnis Q7:
+# Berapa jumlah pinjaman yang bertipe rdf:type bo:HighRiskRatedLoan menurut negara
+# (dieksekusi pada graf sebelum inferensi vs sesudah inferensi RDFS/OWL-RL, serta dibandingkan
+# dengan penelusuran property path bo:ratedAs/skos:broader* ke bo:TingkatTinggi)?
+
+PREFIX bo: <http://example.org/bondora#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?country (COUNT(DISTINCT ?loan) AS ?n_high_risk_rated_loan)
+WHERE {
+    ?loan rdf:type bo:HighRiskRatedLoan ;
+          bo:originatedIn ?country .
+}
+GROUP BY ?country
+ORDER BY ?country

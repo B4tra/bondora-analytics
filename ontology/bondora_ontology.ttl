@@ -1,0 +1,417 @@
+@prefix bo: <http://example.org/bondora#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://example.org/bondora> a owl:Ontology ;
+    rdfs:label "Ontologi Analitik Pinjaman P2P Bondora"@id ;
+    rdfs:comment "Ontologi domain pinjaman Peer-to-Peer (P2P) Bondora untuk Tahap 6 (Semantic Analytics). Pengelompokan buatan proyek (tingkat risiko rating, pita risiko model, pita tenor, dan era pencatatan) diberi penanda eksplisit 'definisi proyek'. Atribut sensitif Gender dan Age sengaja tidak dimodelkan sesuai keputusan etika Tahap 3."@id .
+
+# =============================================================================
+# 1. Kelas Utama (OWL Classes)
+# =============================================================================
+
+bo:Loan a owl:Class ;
+    rdfs:label "Pinjaman"@id ;
+    rdfs:comment "Kontrak pinjaman P2P yang tercatat pada platform Bondora."@id .
+
+bo:Borrower a owl:Class ;
+    rdfs:label "Peminjam"@id ;
+    rdfs:comment "Individu peminjam yang direpresentasikan dengan ID pseudonim (UserName) dan negara asal, tanpa atribut sensitif Gender dan Age."@id .
+
+bo:Country a owl:Class ;
+    rdfs:label "Negara"@id ;
+    rdfs:comment "Negara tempat pinjaman diterbitkan dan tempat peminjam berdomisili (EE, FI, ES, SK)."@id .
+
+bo:RatingClass a owl:Class ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:label "Kelas Rating Bondora"@id ;
+    rdfs:comment "Kelas peringkat risiko kredit Bondora (AA, A, B, C, D, E, F, HR, serta RatingTidakTersedia)."@id .
+
+bo:RiskTier a owl:Class ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:label "Tingkat Risiko Rating"@id ;
+    rdfs:comment "Konsep SKOS untuk pengelompokan kasar kelas rating ke dalam tiga tingkat risiko (definisi proyek yang mengikuti urutan huruf rating Bondora, bukan klasifikasi resmi Bondora)."@id .
+
+bo:OutcomeGroup a owl:Class ;
+    rdfs:subClassOf skos:Concept ;
+    rdfs:label "Kelompok Hasil Pinjaman"@id ;
+    rdfs:comment "Empat kelompok status hasil akhir pinjaman dari Tahap 2 (definisi proyek berdasarkan Status, DefaultDate, dan PrincipalWriteOffs)."@id .
+
+bo:Era a owl:Class ;
+    rdfs:label "Era Pencatatan"@id ;
+    rdfs:comment "Periode waktu pencairan pinjaman sebelum vs sesudah perubahan skema pencatatan Bondora tahun 2018 (definisi proyek berdasarkan perubahan pencatatan yang teramati pada Tahap 1-3)."@id .
+
+bo:TenorBand a owl:Class ;
+    rdfs:label "Pita Tenor Pinjaman"@id ;
+    rdfs:comment "Pengelompokan durasi kontrak pinjaman (LoanDuration) ke dalam lima pita tenor (definisi proyek yang konsisten dengan Tahap 2-3)."@id .
+
+bo:RiskBand a owl:Class ;
+    rdfs:label "Pita Risiko Prediksi Model"@id ;
+    rdfs:comment "Pengelompokan probabilitas gagal bayar 12 bulan terkalibrasi (p_calibrated dari LGBM-A) ke dalam tiga pita risiko (definisi proyek)."@id .
+
+bo:Strategy a owl:Class ;
+    rdfs:label "Strategi Portofolio Investor"@id ;
+    rdfs:comment "Strategi pemilihan portofolio pinjaman dari Tahap 5 (Prescriptive Analytics)."@id .
+
+# =============================================================================
+# 2. Kelas Terdefinisi untuk Inferensi (Defined Classes)
+# =============================================================================
+
+bo:DefaultedLoan a owl:Class ;
+    rdfs:subClassOf bo:Loan ;
+    rdfs:label "Pinjaman Gagal Bayar (Default)"@id ;
+    rdfs:comment "Kelas terdefinisi (definisi proyek): pinjaman (bo:Loan) yang memiliki kelompok hasil bo:Default."@id ;
+    owl:equivalentClass [
+        a owl:Restriction ;
+        owl:onProperty bo:hasOutcome ;
+        owl:hasValue bo:Default
+    ] .
+
+bo:CensoredLoan a owl:Class ;
+    rdfs:subClassOf bo:Loan ;
+    rdfs:label "Pinjaman Tersensor Kanan (Berjalan)"@id ;
+    rdfs:comment "Kelas terdefinisi (definisi proyek): pinjaman (bo:Loan) yang belum selesai (berstatus bo:Current atau bo:LateNotDefault pada tanggal laporan)."@id ;
+    owl:equivalentClass [
+        a owl:Class ;
+        owl:unionOf (
+            [
+                a owl:Restriction ;
+                owl:onProperty bo:hasOutcome ;
+                owl:hasValue bo:Current
+            ]
+            [
+                a owl:Restriction ;
+                owl:onProperty bo:hasOutcome ;
+                owl:hasValue bo:LateNotDefault
+            ]
+        )
+    ] .
+
+bo:HighRiskRatedLoan a owl:Class ;
+    rdfs:subClassOf bo:Loan ;
+    rdfs:label "Pinjaman Berating Tingkat Tinggi"@id ;
+    rdfs:comment "Kelas terdefinisi (definisi proyek): pinjaman (bo:Loan) yang memiliki rating (bo:ratedAs) dengan tingkat risiko SKOS bo:TingkatTinggi (E, F, atau HR)."@id ;
+    owl:equivalentClass [
+        a owl:Restriction ;
+        owl:onProperty bo:ratedAs ;
+        owl:someValuesFrom [
+            a owl:Restriction ;
+            owl:onProperty skos:broader ;
+            owl:hasValue bo:TingkatTinggi
+        ]
+    ] .
+
+# =============================================================================
+# 3. Properti Objek (Object Properties)
+# =============================================================================
+
+bo:hasBorrower a owl:ObjectProperty ;
+    rdfs:label "memiliki peminjam"@id ;
+    rdfs:comment "Menghubungkan kontrak pinjaman dengan individu peminjamnya."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range bo:Borrower .
+
+bo:originatedIn a owl:ObjectProperty ;
+    rdfs:label "diterbitkan di negara"@id ;
+    rdfs:comment "Menghubungkan kontrak pinjaman dengan negara tempat pinjaman dicairkan."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range bo:Country .
+
+bo:ratedAs a owl:ObjectProperty ;
+    rdfs:label "memiliki kelas rating"@id ;
+    rdfs:comment "Menghubungkan kontrak pinjaman dengan kelas rating Bondora saat pencairan."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range bo:RatingClass .
+
+bo:hasOutcome a owl:ObjectProperty ;
+    rdfs:label "memiliki kelompok hasil"@id ;
+    rdfs:comment "Menghubungkan kontrak pinjaman dengan salah satu dari empat kelompok hasil pada tanggal laporan."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range bo:OutcomeGroup .
+
+bo:inEra a owl:ObjectProperty ;
+    rdfs:label "berada pada era pencatatan"@id ;
+    rdfs:comment "Menghubungkan kontrak pinjaman dengan era pencatatan (definisi proyek: pra-2018 vs pasca-2018)."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range bo:Era .
+
+bo:hasTenorBand a owl:ObjectProperty ;
+    rdfs:label "memiliki pita tenor"@id ;
+    rdfs:comment "Menghubungkan kontrak pinjaman dengan pita durasi tenor (definisi proyek)."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range bo:TenorBand .
+
+bo:inRiskBand a owl:ObjectProperty ;
+    rdfs:label "berada pada pita risiko model"@id ;
+    rdfs:comment "Menghubungkan kontrak pinjaman dengan pita risiko berdasarkan p_calibrated (definisi proyek)."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range bo:RiskBand .
+
+bo:selectedBy a owl:ObjectProperty ;
+    rdfs:label "dipilih oleh strategi"@id ;
+    rdfs:comment "Menghubungkan kontrak pinjaman dengan strategi portofolio investor yang memilihnya pada Tahap 5."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range bo:Strategy .
+
+bo:borrowerCountry a owl:ObjectProperty ;
+    rdfs:label "negara domisili peminjam"@id ;
+    rdfs:comment "Menghubungkan individu peminjam dengan negara asal/domisilinya."@id ;
+    rdfs:domain bo:Borrower ;
+    rdfs:range bo:Country .
+
+bo:precededBy a owl:ObjectProperty ;
+    rdfs:label "didahului oleh pinjaman"@id ;
+    rdfs:comment "Menghubungkan suatu pinjaman ke pinjaman sebelumnya secara langsung milik peminjam yang sama menurut urutan LoanDate (tie-break LoanNumber) di antara pinjaman dalam graf."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range bo:Loan .
+
+# =============================================================================
+# 4. Properti Data (Datatype Properties)
+# =============================================================================
+
+bo:amount a owl:DatatypeProperty ;
+    rdfs:label "jumlah pokok pinjaman (EUR)"@id ;
+    rdfs:comment "Nominal pokok pinjaman yang didanai (Amount) dalam EUR."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range xsd:decimal .
+
+bo:interestPct a owl:DatatypeProperty ;
+    rdfs:label "suku bunga tahunan (%)"@id ;
+    rdfs:comment "Suku bunga nominal tahunan pinjaman (Interest) dalam persen."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range xsd:decimal .
+
+bo:loanDurationMonths a owl:DatatypeProperty ;
+    rdfs:label "durasi tenor pinjaman (bulan)"@id ;
+    rdfs:comment "Tenor kontrak pinjaman (LoanDuration) dalam satuan bulan."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range xsd:integer .
+
+bo:loanDate a owl:DatatypeProperty ;
+    rdfs:label "tanggal pencairan pinjaman"@id ;
+    rdfs:comment "Tanggal pencairan pinjaman (LoanDate)."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range xsd:date .
+
+bo:defaultDate a owl:DatatypeProperty ;
+    rdfs:label "tanggal gagal bayar (DefaultDate)"@id ;
+    rdfs:comment "Tanggal ketika pinjaman tercatat mengalami gagal bayar (DefaultDate); hanya diisi apabila DefaultDate tidak kosong."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range xsd:date .
+
+bo:defaultWithin12m a owl:DatatypeProperty ;
+    rdfs:label "gagal bayar dalam 12 bulan"@id ;
+    rdfs:comment "Status gagal bayar berhorizon tetap 12 bulan (default_12m == 1 -> true, 0 -> false); hanya diisi bila pinjaman telah teramati penuh 12 bulan dan default_12m tidak bernilai NA."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range xsd:boolean .
+
+bo:predictedDefaultProb12m a owl:DatatypeProperty ;
+    rdfs:label "probabilitas prediksi default 12 bulan"@id ;
+    rdfs:comment "Probabilitas gagal bayar 12 bulan terkalibrasi (p_calibrated) dari model LGBM-A Tahap 4."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range xsd:decimal .
+
+bo:returnRatio a owl:DatatypeProperty ;
+    rdfs:label "rasio pengembalian aktual"@id ;
+    rdfs:comment "Rasio total pembayaran pokok dan bunga/denda terhadap Amount (return_ratio); hanya diisi untuk pinjaman selesai (is_resolved == true)."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range xsd:decimal .
+
+bo:isResolved a owl:DatatypeProperty ;
+    rdfs:label "pinjaman telah selesai (resolved)"@id ;
+    rdfs:comment "Bernilai true jika hasil akhir pinjaman telah teramati (Default atau RepaidNoDefault), false jika masih berjalan."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range xsd:boolean .
+
+bo:ordinalRank a owl:DatatypeProperty ;
+    rdfs:label "urutan peringkat ordinal"@id ;
+    rdfs:comment "Urutan numerik kelas rating dari risiko terendah (AA=1) hingga tertinggi (HR=8) dan tidak tersedia (9)."@id ;
+    rdfs:domain bo:RatingClass ;
+    rdfs:range xsd:integer .
+
+# =============================================================================
+# 5. Individu Tetap & Taksonomi SKOS
+# =============================================================================
+
+# --- 5.1 Skema Konsep SKOS ---
+bo:RatingRiskScheme a skos:ConceptScheme ;
+    rdfs:label "Skema Taksonomi Rating dan Tingkat Risiko"@id ;
+    rdfs:comment "Skema taksonomi SKOS yang memetakan kelas rating Bondora ke tingkat risiko kasar (definisi proyek, bukan klasifikasi resmi Bondora)."@id .
+
+bo:OutcomeScheme a skos:ConceptScheme ;
+    rdfs:label "Skema Kelompok Hasil Pinjaman"@id ;
+    rdfs:comment "Skema konsep empat kelompok hasil pinjaman dari Tahap 2 (definisi proyek)."@id .
+
+# --- 5.2 Negara (bo:Country) ---
+bo:Country_EE a bo:Country ;
+    rdfs:label "Estonia (EE)"@id ;
+    rdfs:comment "Negara pasar utama Bondora: Estonia (kode ISO EE)."@id .
+
+bo:Country_FI a bo:Country ;
+    rdfs:label "Finlandia (FI)"@id ;
+    rdfs:comment "Negara pasar Bondora: Finlandia (kode ISO FI)."@id .
+
+bo:Country_ES a bo:Country ;
+    rdfs:label "Spanyol (ES)"@id ;
+    rdfs:comment "Negara pasar Bondora: Spanyol (kode ISO ES)."@id .
+
+bo:Country_SK a bo:Country ;
+    rdfs:label "Slowakia (SK)"@id ;
+    rdfs:comment "Negara pasar Bondora: Slowakia (kode ISO SK)."@id .
+
+# --- 5.3 Kelompok Hasil Pinjaman (bo:OutcomeGroup) ---
+bo:Default a bo:OutcomeGroup, skos:Concept ;
+    skos:inScheme bo:OutcomeScheme ;
+    rdfs:label "Gagal Bayar (Default)"@id ;
+    rdfs:comment "Kelompok hasil pinjaman yang memiliki DefaultDate tercatat atau berstatus Repaid dengan PrincipalWriteOffs > 0 (definisi proyek Tahap 1-2)."@id .
+
+bo:RepaidNoDefault a bo:OutcomeGroup, skos:Concept ;
+    skos:inScheme bo:OutcomeScheme ;
+    rdfs:label "Lunas Tanpa Default"@id ;
+    rdfs:comment "Kelompok hasil pinjaman berstatus Repaid tanpa DefaultDate dan PrincipalWriteOffs == 0 (definisi proyek Tahap 1-2)."@id .
+
+bo:Current a bo:OutcomeGroup, skos:Concept ;
+    skos:inScheme bo:OutcomeScheme ;
+    rdfs:label "Berjalan Lancar (Current)"@id ;
+    rdfs:comment "Kelompok hasil pinjaman berjalan berstatus Current tanpa DefaultDate pada tanggal laporan (definisi proyek Tahap 1-2)."@id .
+
+bo:LateNotDefault a bo:OutcomeGroup, skos:Concept ;
+    skos:inScheme bo:OutcomeScheme ;
+    rdfs:label "Menunggak Belum Default (Late)"@id ;
+    rdfs:comment "Kelompok hasil pinjaman berjalan berstatus Late tanpa DefaultDate pada tanggal laporan (definisi proyek Tahap 1-2)."@id .
+
+# --- 5.4 Era Pencatatan (bo:Era) ---
+bo:EraPraPerubahan a bo:Era ;
+    rdfs:label "Era Pra-Perubahan (<= 2017)"@id ;
+    rdfs:comment "Pinjaman dengan LoanDate <= 2017-12-31. Pembagian era ini adalah definisi proyek berdasarkan perubahan pencatatan variabel demografi dan riwayat kredit yang teramati sejak 2018."@id .
+
+bo:EraPascaPerubahan a bo:Era ;
+    rdfs:label "Era Pasca-Perubahan (>= 2018)"@id ;
+    rdfs:comment "Pinjaman dengan LoanDate >= 2018-01-01. Pembagian era ini adalah definisi proyek berdasarkan perubahan pencatatan variabel demografi dan riwayat kredit yang teramati sejak 2018."@id .
+
+# --- 5.5 Tingkat Risiko Rating (bo:RiskTier - SKOS Broader Concepts) ---
+bo:TingkatRendah a bo:RiskTier, skos:Concept ;
+    skos:inScheme bo:RatingRiskScheme ;
+    rdfs:label "Tingkat Risiko Rating Rendah (AA, A, B)"@id ;
+    rdfs:comment "Pengelompokan kelas rating AA, A, dan B sebagai tingkat risiko rendah. Pengelompokan ini adalah definisi proyek yang mengikuti urutan huruf rating Bondora, bukan klasifikasi resmi Bondora."@id .
+
+bo:TingkatMenengah a bo:RiskTier, skos:Concept ;
+    skos:inScheme bo:RatingRiskScheme ;
+    rdfs:label "Tingkat Risiko Rating Menengah (C, D)"@id ;
+    rdfs:comment "Pengelompokan kelas rating C dan D sebagai tingkat risiko menengah. Pengelompokan ini adalah definisi proyek yang mengikuti urutan huruf rating Bondora, bukan klasifikasi resmi Bondora."@id .
+
+bo:TingkatTinggi a bo:RiskTier, skos:Concept ;
+    skos:inScheme bo:RatingRiskScheme ;
+    rdfs:label "Tingkat Risiko Rating Tinggi (E, F, HR)"@id ;
+    rdfs:comment "Pengelompokan kelas rating E, F, dan HR sebagai tingkat risiko tinggi. Pengelompokan ini adalah definisi proyek yang mengikuti urutan huruf rating Bondora, bukan klasifikasi resmi Bondora."@id .
+
+bo:TingkatTidakTersedia a bo:RiskTier, skos:Concept ;
+    skos:inScheme bo:RatingRiskScheme ;
+    rdfs:label "Tingkat Risiko Rating Tidak Tersedia"@id ;
+    rdfs:comment "Kategori penampung untuk pinjaman yang tidak memiliki nilai Rating pada data asli (definisi proyek)."@id .
+
+# --- 5.6 Kelas Rating Bondora (bo:RatingClass - SKOS Narrower Concepts) ---
+bo:Rating_AA a bo:RatingClass, skos:Concept ;
+    skos:inScheme bo:RatingRiskScheme ;
+    skos:broader bo:TingkatRendah ;
+    bo:ordinalRank 1 ;
+    rdfs:label "Rating AA"@id ;
+    rdfs:comment "Kelas rating Bondora AA (urutan 1); dipetakan via skos:broader ke bo:TingkatRendah (definisi proyek)."@id .
+
+bo:Rating_A a bo:RatingClass, skos:Concept ;
+    skos:inScheme bo:RatingRiskScheme ;
+    skos:broader bo:TingkatRendah ;
+    bo:ordinalRank 2 ;
+    rdfs:label "Rating A"@id ;
+    rdfs:comment "Kelas rating Bondora A (urutan 2); dipetakan via skos:broader ke bo:TingkatRendah (definisi proyek)."@id .
+
+bo:Rating_B a bo:RatingClass, skos:Concept ;
+    skos:inScheme bo:RatingRiskScheme ;
+    skos:broader bo:TingkatRendah ;
+    bo:ordinalRank 3 ;
+    rdfs:label "Rating B"@id ;
+    rdfs:comment "Kelas rating Bondora B (urutan 3); dipetakan via skos:broader ke bo:TingkatRendah (definisi proyek)."@id .
+
+bo:Rating_C a bo:RatingClass, skos:Concept ;
+    skos:inScheme bo:RatingRiskScheme ;
+    skos:broader bo:TingkatMenengah ;
+    bo:ordinalRank 4 ;
+    rdfs:label "Rating C"@id ;
+    rdfs:comment "Kelas rating Bondora C (urutan 4); dipetakan via skos:broader ke bo:TingkatMenengah (definisi proyek)."@id .
+
+bo:Rating_D a bo:RatingClass, skos:Concept ;
+    skos:inScheme bo:RatingRiskScheme ;
+    skos:broader bo:TingkatMenengah ;
+    bo:ordinalRank 5 ;
+    rdfs:label "Rating D"@id ;
+    rdfs:comment "Kelas rating Bondora D (urutan 5); dipetakan via skos:broader ke bo:TingkatMenengah (definisi proyek)."@id .
+
+bo:Rating_E a bo:RatingClass, skos:Concept ;
+    skos:inScheme bo:RatingRiskScheme ;
+    skos:broader bo:TingkatTinggi ;
+    bo:ordinalRank 6 ;
+    rdfs:label "Rating E"@id ;
+    rdfs:comment "Kelas rating Bondora E (urutan 6); dipetakan via skos:broader ke bo:TingkatTinggi (definisi proyek)."@id .
+
+bo:Rating_F a bo:RatingClass, skos:Concept ;
+    skos:inScheme bo:RatingRiskScheme ;
+    skos:broader bo:TingkatTinggi ;
+    bo:ordinalRank 7 ;
+    rdfs:label "Rating F"@id ;
+    rdfs:comment "Kelas rating Bondora F (urutan 7); dipetakan via skos:broader ke bo:TingkatTinggi (definisi proyek)."@id .
+
+bo:Rating_HR a bo:RatingClass, skos:Concept ;
+    skos:inScheme bo:RatingRiskScheme ;
+    skos:broader bo:TingkatTinggi ;
+    bo:ordinalRank 8 ;
+    rdfs:label "Rating HR"@id ;
+    rdfs:comment "Kelas rating Bondora HR (urutan 8); dipetakan via skos:broader ke bo:TingkatTinggi (definisi proyek)."@id .
+
+bo:RatingTidakTersedia a bo:RatingClass, skos:Concept ;
+    skos:inScheme bo:RatingRiskScheme ;
+    skos:broader bo:TingkatTidakTersedia ;
+    bo:ordinalRank 9 ;
+    rdfs:label "Rating Tidak Tersedia"@id ;
+    rdfs:comment "Kelas penampung bagi pinjaman tanpa nilai Rating (urutan 9; definisi proyek)."@id .
+
+# --- 5.7 Pita Tenor (bo:TenorBand) ---
+bo:Tenor_1_12 a bo:TenorBand ;
+    rdfs:label "Tenor <= 12 bulan"@id ;
+    rdfs:comment "Pita durasi kontrak pinjaman <= 12 bulan (definisi proyek, konsisten dengan Tahap 2-3)."@id .
+
+bo:Tenor_13_24 a bo:TenorBand ;
+    rdfs:label "Tenor 13-24 bulan"@id ;
+    rdfs:comment "Pita durasi kontrak pinjaman 13 sampai 24 bulan (definisi proyek, konsisten dengan Tahap 2-3)."@id .
+
+bo:Tenor_25_36 a bo:TenorBand ;
+    rdfs:label "Tenor 25-36 bulan"@id ;
+    rdfs:comment "Pita durasi kontrak pinjaman 25 sampai 36 bulan (definisi proyek, konsisten dengan Tahap 2-3)."@id .
+
+bo:Tenor_37_59 a bo:TenorBand ;
+    rdfs:label "Tenor 37-59 bulan"@id ;
+    rdfs:comment "Pita durasi kontrak pinjaman 37 sampai 59 bulan (definisi proyek, konsisten dengan Tahap 2-3)."@id .
+
+bo:Tenor_60 a bo:TenorBand ;
+    rdfs:label "Tenor 60 bulan"@id ;
+    rdfs:comment "Pita durasi kontrak pinjaman tepat 60 bulan (definisi proyek, konsisten dengan Tahap 2-3)."@id .
+
+# --- 5.8 Pita Risiko Prediksi Model (bo:RiskBand) ---
+bo:PitaRisikoRendah a bo:RiskBand ;
+    rdfs:label "Pita Risiko Model Rendah (< 0,15)"@id ;
+    rdfs:comment "Pinjaman dengan probabilitas gagal bayar 12 bulan terkalibrasi p_calibrated < 0,15 (definisi proyek)."@id .
+
+bo:PitaRisikoSedang a bo:RiskBand ;
+    rdfs:label "Pita Risiko Model Sedang (0,15 - < 0,35)"@id ;
+    rdfs:comment "Pinjaman dengan probabilitas gagal bayar 12 bulan terkalibrasi 0,15 <= p_calibrated < 0,35 (definisi proyek)."@id .
+
+bo:PitaRisikoTinggi a bo:RiskBand ;
+    rdfs:label "Pita Risiko Model Tinggi (>= 0,35)"@id ;
+    rdfs:comment "Pinjaman dengan probabilitas gagal bayar 12 bulan terkalibrasi p_calibrated >= 0,35 (definisi proyek)."@id .
+
+# --- 5.9 Strategi Portofolio Investor (bo:Strategy) ---
+bo:StrategiS3 a bo:Strategy ;
+    rdfs:label "Strategi S3 (Optimasi Berbatas)"@id ;
+    rdfs:comment "Strategi portofolio rekomendasi Tahap 5 yang memilih 5.000 pinjaman uji untuk memaksimalkan ekspektasi keuntungan di bawah seluruh batasan risiko dan konsentrasi."@id .

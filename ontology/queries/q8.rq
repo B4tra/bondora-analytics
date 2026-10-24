@@ -1,0 +1,19 @@
+# Pertanyaan Bisnis Q8:
+# Bagaimana perbandingan komposisi 4 kelompok hasil pinjaman (bo:OutcomeGroup)
+# menurut era pencatatan (bo:Era) dan negara asal (bo:Country) di dalam graf?
+
+PREFIX bo: <http://example.org/bondora#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?era ?country ?outcome
+       (COUNT(?loan) AS ?n_pinjaman)
+       (AVG(?p) AS ?p_calibrated_rata2)
+WHERE {
+    ?loan rdf:type bo:Loan ;
+          bo:inEra ?era ;
+          bo:originatedIn ?country ;
+          bo:hasOutcome ?outcome ;
+          bo:predictedDefaultProb12m ?p .
+}
+GROUP BY ?era ?country ?outcome
+ORDER BY ?era ?country ?outcome

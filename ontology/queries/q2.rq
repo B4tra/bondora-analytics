@@ -1,0 +1,23 @@
+# Pertanyaan Bisnis Q2:
+# Berapa jumlah pinjaman teramati 12 bulan, jumlah gagal bayar 12 bulan, dan tingkat gagal bayar 12 bulan
+# (hanya untuk pinjaman yang properti bo:defaultWithin12m-nya tersedia) menurut negara dan era pencatatan?
+
+PREFIX bo: <http://example.org/bondora#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?country ?era
+       (COUNT(?loan) AS ?n_teramati_12m)
+       (SUM(IF(?d12 = true, 1, 0)) AS ?n_default_12m)
+       (AVG(IF(?d12 = true, 1.0, 0.0)) AS ?default_rate_12m)
+       (AVG(?p) AS ?p_calibrated_rata2)
+WHERE {
+    ?loan rdf:type bo:Loan ;
+          bo:originatedIn ?country ;
+          bo:inEra ?era ;
+          bo:defaultWithin12m ?d12 ;
+          bo:predictedDefaultProb12m ?p .
+    FILTER(BOUND(?d12))
+}
+GROUP BY ?country ?era
+ORDER BY ?country ?era
