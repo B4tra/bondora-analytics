@@ -228,6 +228,7 @@ def test_1_ontology_loads_and_schema_complete() -> None:
         BO.interestPct,
         BO.loanDurationMonths,
         BO.loanDate,
+        BO.defaultDate,
         BO.defaultWithin12m,
         BO.predictedDefaultProb12m,
         BO.returnRatio,
@@ -368,18 +369,16 @@ def test_6_sparql_pandas_cross_check_and_inference_on_mini_graph() -> None:
 
     q1_df, _ = run_q1(g, df_sorted)
     q2_df, _ = run_q2(g, df_sorted)
-    q4_df, _ = run_q4(g, df_sorted)
-    q5_df, q5_dist_df, _ = run_q5(g, df_sorted)
-    q6_df, _ = run_q6(
-        # On mini graph we only check run_q1, run_q2, run_q4, run_q5 and OWL-RL inference
-        # (run_q6 asserts the full 5,000 S3 portfolio shares; test OWL-RL inference directly here)
-        g, df_sorted
-    ) if False else (None, 0.0)
+    q4_df, q4_summary_df, _ = run_q4(g, df_sorted)
+    q5_df, q5_dist_df, q5_s3_conc_df, _ = run_q5(g, df_sorted)
 
     assert (q1_df["n_pinjaman"] == q1_df["pandas_n_pinjaman"]).all()
     assert (q2_df["n_default_12m"] == q2_df["pandas_n_default_12m"]).all()
-    assert len(q4_df) == 2  # Loan 102 after 101 Default, and Loan 202 after 201 Default
+    assert len(q4_df) == 2  # Loan 102 after 101 Default (varian a), and Loan 202 after 201 Default (varian b)
+    assert set(q4_df["varian"]) == {"a_setelah_default", "b_tumpang_tindih"}
+    assert len(q4_summary_df) == 10
     assert int(q5_dist_df["panjang_rantai_peminjam"].max()) == 3
+    assert not q5_s3_conc_df.empty
 
     g_inf, inf_df = run_owlrl_inference(g, df_sorted)
     assert len(g_inf) > len(g)
@@ -398,3 +397,92 @@ def test_7_serialization_reload_preserves_triple_count(tmp_path: Path) -> None:
 
     g_reloaded = load_graph_gz(gz_file)
     assert len(g_reloaded) == len(g)
+
+
+def test_8_q4_variants_a_b_and_missing_default_date_on_mini_data() -> None:
+    """8. Test Q4 variant (a) [LoanDate > defaultDate], variant (b) [LoanDate <= defaultDate], and missing defaultDate."""
+    mini_df = _make_mini_df()
+    # Add a borrower B6 whose first loan is a Default via PrincipalWriteOffs but WITHOUT DefaultDate (pd.NaT)
+    extra_rows = pd.DataFrame(
+        [
+            {
+                "LoanId": "L_601",
+                "LoanNumber": 601,
+                "UserName": "user_zeta",
+                "Country": "EE",
+                "Rating": "D",
+                LOAN_DATE_COL: pd.Timestamp("2018-01-10"),
+                "Amount": 900.0,
+                "Interest": 24.0,
+                "LoanDuration": 36,
+                "Status": "Repaid",
+                "DefaultDate": pd.NaT,
+                "PrincipalWriteOffs": 150.0,
+                IS_RESOLVED_COL: True,
+                DEFAULT_12M_COL: 0.0,
+                REGRESSION_TARGET_COL: 0.80,
+                "p_calibrated": 0.25,
+                "Gender": 0,
+                "Age": 40,
+            },
+            {
+                "LoanId": "L_602",
+                "LoanNumber": 602,
+                "UserName": "user_zeta",
+                "Country": "EE",
+                "Rating": "C",
+                LOAN_DATE_COL: pd.Timestamp("2019-06-15"),
+                "Amount": 1100.0,
+                "Interest": 19.0,
+                "LoanDuration": 36,
+                "Status": "Repaid",
+                "DefaultDate": pd.NaT,
+                "PrincipalWriteOffs": 0.0,
+                IS_RESOLVED_COL: True,
+                DEFAULT_12M_COL: 0.0,
+                REGRESSION_TARGET_COL: 1.12,
+                "p_calibrated": 0.18,
+                "Gender": 0,
+                "Age": 41,
+            },
+        ]
+    )
+    mini_df["PrincipalWriteOffs"] = 0.0
+    full_mini = pd.concat([mini_df, extra_rows], ignore_index=True)
+    full_mini.loc[full_mini["LoanId"] == "L_202", DEFAULT_12M_COL] = 1.0
+
+    prep_df = prepare_annotated_sample_df(full_mini, s3_loan_ids=["L_102", "L_202", "L_602"], score_if_missing=False)
+    g, df_sorted = build_knowledge_graph(prep_df)
+
+    # Verify bo:defaultDate is emitted only when DefaultDate is present (L_101 and L_201, NOT L_601)
+    assert len(list(g.objects(loan_uri(101), BO.defaultDate))) == 1
+    assert len(list(g.objects(loan_uri(201), BO.defaultDate))) == 1
+    assert len(list(g.objects(loan_uri(601), BO.defaultDate))) == 0
+
+    q4_df, q4_summary_df, _ = run_q4(g, df_sorted)
+
+    # Variant (a): Loan 102 (LoanDate 2018-03-20 > Loan 101 DefaultDate 2016-11-15)
+    va = q4_df[q4_df["varian"] == "a_setelah_default"]
+    assert len(va) == 1
+    assert int(va.iloc[0]["prev_loan_number"]) == 101
+    assert int(va.iloc[0]["next_loan_number"]) == 102
+    assert va.iloc[0]["next_loan_date"] > va.iloc[0]["prev_default_date"]
+
+    # Variant (b): Loan 202 (LoanDate 2017-07-01 <= Loan 201 DefaultDate 2017-12-01)
+    vb = q4_df[q4_df["varian"] == "b_tumpang_tindih"]
+    assert len(vb) == 1
+    assert int(vb.iloc[0]["prev_loan_number"]) == 201
+    assert int(vb.iloc[0]["next_loan_number"]) == 202
+    assert vb.iloc[0]["next_loan_date"] <= vb.iloc[0]["prev_default_date"]
+
+    # Loan 602 (after 601 Default without DefaultDate) and Loan 103 (after 102 RepaidNoDefault) must NOT be in q4_df
+    assert 602 not in set(q4_df["next_loan_number"])
+    assert 103 not in set(q4_df["next_loan_number"])
+
+    # Check summary table counts for variants (a), (b), and tanpa_default_date
+    s_map = q4_summary_df.set_index("kode_varian")
+    assert int(s_map.loc["a_setelah_default", "jumlah_pasangan_atau_pinjaman"]) == 1
+    assert int(s_map.loc["b_tumpang_tindih", "jumlah_pasangan_atau_pinjaman"]) == 1
+    assert int(s_map.loc["tanpa_default_date", "jumlah_pasangan_atau_pinjaman"]) == 1
+    assert int(s_map.loc["s3_pendahulu_langsung_default_sebelum_loandate", "n_di_s3"]) == 1
+

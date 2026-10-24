@@ -196,6 +196,12 @@ bo:loanDate a owl:DatatypeProperty ;
     rdfs:domain bo:Loan ;
     rdfs:range xsd:date .
 
+bo:defaultDate a owl:DatatypeProperty ;
+    rdfs:label "tanggal gagal bayar (DefaultDate)"@id ;
+    rdfs:comment "Tanggal ketika pinjaman tercatat mengalami gagal bayar (DefaultDate); hanya diisi apabila DefaultDate tidak kosong."@id ;
+    rdfs:domain bo:Loan ;
+    rdfs:range xsd:date .
+
 bo:defaultWithin12m a owl:DatatypeProperty ;
     rdfs:label "gagal bayar dalam 12 bulan"@id ;
     rdfs:comment "Status gagal bayar berhorizon tetap 12 bulan (default_12m == 1 -> true, 0 -> false); hanya diisi bila pinjaman telah teramati penuh 12 bulan dan default_12m tidak bernilai NA."@id ;

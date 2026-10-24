@@ -111,6 +111,10 @@ def prepare_annotated_sample_df(
     out["UserName"] = out["UserName"].astype(str)
     out["Country"] = out["Country"].astype(str)
     out[LOAN_DATE_COL] = pd.to_datetime(out[LOAN_DATE_COL])
+    if "DefaultDate" in out.columns:
+        out["DefaultDate"] = pd.to_datetime(out["DefaultDate"], errors="coerce")
+    else:
+        out["DefaultDate"] = pd.NaT
 
     if "p_calibrated" not in out.columns:
         if score_if_missing:
@@ -145,8 +149,13 @@ def prepare_annotated_sample_df(
 
     # Compute precededBy predecessor LoanNumber on the sorted sample
     out = out.sort_values(["UserName", LOAN_DATE_COL, "LoanNumber"], kind="mergesort").reset_index(drop=True)
+    out["loan_date_str"] = pd.to_datetime(out[LOAN_DATE_COL]).dt.strftime("%Y-%m-%d")
+    def_dt = pd.to_datetime(out["DefaultDate"], errors="coerce")
+    out["default_date_str"] = def_dt.dt.strftime("%Y-%m-%d").where(def_dt.notna(), None)
     out["prev_loan_number"] = out.groupby("UserName", observed=True)["LoanNumber"].shift(1)
     out["prev_outcome_code"] = out.groupby("UserName", observed=True)["outcome_code"].shift(1)
+    out["prev_default_date"] = out.groupby("UserName", observed=True)["DefaultDate"].shift(1)
+    out["prev_default_date_str"] = out.groupby("UserName", observed=True)["default_date_str"].shift(1)
     out["chain_position"] = out.groupby("UserName", observed=True).cumcount() + 1
     out["borrower_loan_count_in_graph"] = out.groupby("UserName", observed=True)["LoanNumber"].transform("count")
 
@@ -192,6 +201,9 @@ def build_knowledge_graph(
     interests = pd.to_numeric(df_sorted["Interest"], errors="coerce").to_numpy(dtype="float64")
     durations = pd.to_numeric(df_sorted["LoanDuration"], errors="coerce").to_numpy(dtype="int64")
     loan_dates = pd.to_datetime(df_sorted[LOAN_DATE_COL]).dt.strftime("%Y-%m-%d").to_numpy()
+    def_dates_dt = pd.to_datetime(df_sorted["DefaultDate"], errors="coerce")
+    def_dates_notna = def_dates_dt.notna().to_numpy(dtype=bool)
+    def_dates_str = def_dates_dt.dt.strftime("%Y-%m-%d").to_numpy()
     p_cals = df_sorted["p_calibrated"].to_numpy(dtype="float64")
     is_res_arr = df_sorted[IS_RESOLVED_COL].astype(bool).to_numpy()
     def12_arr = df_sorted[DEFAULT_12M_COL].to_numpy()
@@ -222,6 +234,8 @@ def build_knowledge_graph(
         g.add((l_node, BO.interestPct, Literal(Decimal(f"{interests[i]:.4f}"), datatype=XSD.decimal)))
         g.add((l_node, BO.loanDurationMonths, Literal(int(durations[i]), datatype=XSD.integer)))
         g.add((l_node, BO.loanDate, Literal(str(loan_dates[i]), datatype=XSD.date)))
+        if def_dates_notna[i]:
+            g.add((l_node, BO.defaultDate, Literal(str(def_dates_str[i]), datatype=XSD.date)))
         g.add((l_node, BO.predictedDefaultProb12m, Literal(Decimal(f"{p_cals[i]:.6f}"), datatype=XSD.decimal)))
         g.add((l_node, BO.isResolved, Literal(bool(is_res_arr[i]), datatype=XSD.boolean)))
 

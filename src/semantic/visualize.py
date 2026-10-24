@@ -286,19 +286,20 @@ def plot_ontology_schema(output_path: Path = FIGURES_DIR / "07_ontology_schema.p
         0.16,
         0.13,
         0.26,
-        0.19,
+        0.205,
         "Properti Data (owl:DatatypeProperty)\npada bo:Loan:\n"
         "• bo:amount (xsd:decimal)\n"
         "• bo:interestPct (xsd:decimal)\n"
         "• bo:loanDurationMonths (xsd:integer)\n"
         "• bo:loanDate (xsd:date)\n"
+        "• bo:defaultDate (xsd:date, opsional)\n"
         "• bo:predictedDefaultProb12m (xsd:decimal)\n"
         "• bo:defaultWithin12m (xsd:boolean, opsional)\n"
         "• bo:returnRatio (xsd:decimal, selesai)\n"
         "• bo:isResolved (xsd:boolean)",
         facecolor="#f8fafc",
         edgecolor="#475569",
-        fontsize=8.1,
+        fontsize=7.9,
         fontweight="normal",
     )
 
@@ -385,7 +386,7 @@ def plot_example_subgraph(
     ax.set_ylim(0.0, 1.0)
     ax.axis("off")
 
-    # Borrower and Country in dedicated left column
+    # Borrower and Country in dedicated left column (generic label "Peminjam A" on figure)
     b_pos = (0.105, 0.74)
     c_pos = (0.105, 0.30)
     _draw_box(
@@ -393,7 +394,7 @@ def plot_example_subgraph(
         *b_pos,
         0.18,
         0.09,
-        f"bo:Borrower_{uname}\n(rdf:type bo:Borrower)",
+        "Peminjam A\n(rdf:type bo:Borrower)",
         facecolor="#e0f2fe",
         edgecolor="#0369a1",
         fontsize=8.8,
@@ -417,8 +418,8 @@ def plot_example_subgraph(
     prev_pos = None
     for idx, row in b_loans.iterrows():
         x = float(xs[idx])
-        l_num = int(row["LoanNumber"])
         l_date = pd.to_datetime(row[LOAN_DATE_COL]).strftime("%Y-%m-%d")
+        def_date_str = str(row["default_date_str"]) if pd.notna(row.get("default_date_str")) else "-"
         amt = float(row["Amount"])
         rate_pct = float(row["Interest"])
         p_cal = float(row["p_calibrated"])
@@ -428,20 +429,21 @@ def plot_example_subgraph(
         rb_code = str(row["risk_band"])
         in_s3 = bool(row["in_s3"])
 
-        # Loan box
+        # Loan box with generic label "Pinjaman 1..N" (LoanNumber only in companion table)
+        date_line = f"LoanDate: {l_date}" + (f"\nDefaultDate: {def_date_str}" if def_date_str != "-" else "")
         _draw_box(
             ax,
             x,
             loan_y,
             0.20,
-            0.13,
-            f"bo:Loan_{l_num}\n"
-            f"Tanggal: {l_date}\n"
+            0.135,
+            f"Pinjaman {idx + 1} (bo:Loan)\n"
+            f"{date_line}\n"
             f"Pokok: EUR {amt:,.0f} | Bunga: {rate_pct:.1f}%\n"
             f"p_calibrated: {p_cal:.3f}",
             facecolor="#dbeafe",
             edgecolor="#1d4ed8",
-            fontsize=8.3,
+            fontsize=8.0,
         )
 
         # Link to Borrower and Country (only label first loan to avoid clutter, draw subtle lines for others)
@@ -550,7 +552,7 @@ def plot_example_subgraph(
             _draw_arrow(ax, (x, loan_y - 0.065), (x - 0.05, 0.04 + 0.03), "bo:selectedBy", fontsize=7.2, label_offset=(-0.02, -0.05))
 
     ax.set_title(
-        f"Contoh Subgraf Knowledge Graph — Peminjam bo:Borrower_{uname} ({n_loans} Pinjaman: LoanNumber {loan_numbers})\n"
+        f"Contoh Subgraf Knowledge Graph — Peminjam A ({n_loans} Pinjaman Berurutan di Negara {c_code})\n"
         "Menampilkan Rantai Peminjaman Ulang (bo:precededBy), Taksonomi Rating SKOS, Hasil Pinjaman, dan Seleksi S3",
         fontsize=11.5,
         fontweight="bold",
@@ -561,12 +563,31 @@ def plot_example_subgraph(
     fig.savefig(output_path, dpi=160, bbox_inches="tight")
     plt.close(fig)
 
+    loans_tbl = b_loans[
+        [
+            "LoanNumber",
+            "loan_date_str",
+            "default_date_str",
+            "Country",
+            "rating_clean",
+            "risk_tier",
+            "outcome_code",
+            "p_calibrated",
+            "in_s3",
+            "prev_loan_number",
+        ]
+    ].copy()
+    loans_tbl.insert(0, "label_graf", [f"Pinjaman {i + 1}" for i in range(len(loans_tbl))])
+    loans_tbl.insert(0, "label_peminjam", "Peminjam A")
+    loans_tbl.to_csv(TABLES_DIR / "07_example_subgraph_loans.csv", index=False)
+
     return {
+        "borrower_label": "Peminjam A",
         "username": uname,
         "country": c_code,
         "loan_numbers": loan_numbers,
         "n_loans": n_loans,
-        "loans_df": b_loans[["LoanNumber", LOAN_DATE_COL, "Country", "rating_clean", "risk_tier", "outcome_code", "p_calibrated", "in_s3", "prev_loan_number"]],
+        "loans_df": loans_tbl,
     }
 
 

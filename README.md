@@ -187,7 +187,7 @@ python -m src.semantic.queries
 python -m src.semantic.visualize
 ```
 
-> **Catatan Git:** Berkas graf instans `data/processed/bondora_graph.ttl.gz` (`0,713 MB`), sampel antara `data/processed/semantic_sample.parquet`, dan daftar pinjaman `data/processed/s3_selected_loans.parquet` **tidak di-commit ke Git** (diabaikan melalui `.gitignore`) dan dapat dibangun ulang secara deterministik kapan saja dengan menjalankan `python -m src.semantic.build_graph`. Yang di-commit ke Git adalah ontologi (`ontology/bondora_ontology.ttl`), berkas query (`ontology/queries/q1.rq`..`q8.rq`), kode sumber (`src/semantic/`), tabel (`reports/tables/07_*.csv`), grafik (`reports/figures/07_*.png`, `reports/07_kg_interactive.html`), dan notebook (`notebooks/07_semantic.ipynb`).
+> **Catatan Git:** Berkas graf instans `data/processed/bondora_graph.ttl.gz` (`0,741 MB`), sampel antara `data/processed/semantic_sample.parquet`, dan daftar pinjaman `data/processed/s3_selected_loans.parquet` **tidak di-commit ke Git** (diabaikan melalui `.gitignore`) dan dapat dibangun ulang secara deterministik kapan saja dengan menjalankan `python -m src.semantic.build_graph`. Yang di-commit ke Git adalah ontologi (`ontology/bondora_ontology.ttl`), berkas query (`ontology/queries/q1.rq`..`q8.rq`), kode sumber (`src/semantic/`), tabel (`reports/tables/07_*.csv`), grafik (`reports/figures/07_*.png`, `reports/07_kg_interactive.html`), dan notebook (`notebooks/07_semantic.ipynb`).
 
 ---
 
@@ -201,7 +201,7 @@ python -m src.semantic.visualize
 | **Tahap 3** | Diagnostic Analytics | Label horizon tetap (12m/24m), uji hipotesis, IV, korelasi/VIF, PSI antar-era, Kaplan–Meier, & audit *fairness* (`03_diagnostic.ipynb`) | **Selesai** |
 | **Tahap 4** | Predictive Analytics | Pemodelan klasifikasi *default* 12m & regresi `return_ratio`, kalibrasi probabilitas, evaluasi SHAP & subgrup (`04_*.ipynb`, `05_*.ipynb`, `src/models/`) | **Selesai** |
 | **Tahap 5** | Prescriptive Analytics | Optimasi alokasi portofolio investor (`S0`–`S5`), simulasi *what-if*, kebijakan platform (`P1`/`P2`), & *forecast* bulanan (`06_prescriptive.ipynb`, `src/analysis/prescriptive*.py`, `src/analysis/forecasting.py`) | **Selesai** |
-| **Tahap 6** | Semantic Analytics | Perancangan ontologi OWL/RDFS & taksonomi SKOS (`ontology/bondora_ontology.ttl`), pembangunan *knowledge graph* (`340.461` triple), 8 query SPARQL terverifikasi `pandas`, & inferensi OWL-RL (`07_semantic.ipynb`, `src/semantic/`) | **Selesai** |
+| **Tahap 6** | Semantic Analytics | Perancangan ontologi OWL/RDFS & taksonomi SKOS (`ontology/bondora_ontology.ttl`), pembangunan *knowledge graph* (`344.904` triple), 8 query SPARQL terverifikasi `pandas`, & inferensi OWL-RL (`07_semantic.ipynb`, `src/semantic/`) | **Selesai** |
 | **Tahap 7** | Dashboard Interaktif | Pembuatan aplikasi web interaktif menggunakan Streamlit (`dashboard/`) | Belum |
 | **Tahap 8** | Laporan Akhir & Finalisasi | Penyusunan deck laporan (PPT) dan pemeriksaan reproduktifitas menyeluruh (`reports/`) | Belum |
 
@@ -399,46 +399,49 @@ Untuk mengatasi bias seleksi waktu pengamatan (*right-censoring*) pada pinjaman 
 
 | Nama File | Deskripsi Satu Baris |
 | :--- | :--- |
-| `ontology/bondora_ontology.ttl` | Skema ontologi OWL/RDFS dan taksonomi SKOS (`bo: <http://example.org/bondora#>`, `321` triple, `13` kelas OWL termasuk `3` kelas inferensi, `10` properti objek, `9` properti data, `28` individu tetap berlabel Bahasa Indonesia dan penanda `"definisi proyek"`). |
-| `ontology/queries/q1.rq` | Query SPARQL Q1: jumlah pinjaman, rata-rata `p_calibrated`, dan rata-rata bunga per tingkat risiko rating (`skos:broader`) dan negara. |
+| `ontology/bondora_ontology.ttl` | Skema ontologi OWL/RDFS dan taksonomi SKOS (`bo: <http://example.org/bondora#>`, `326` triple, `13` kelas OWL termasuk `3` kelas inferensi, `10` properti objek, `10` properti data termasuk `bo:defaultDate`, `28` individu tetap berlabel Bahasa Indonesia dan penanda `"definisi proyek"`). |
+| `ontology/queries/q1.rq` | Query SPARQL Q1: jumlah pinjaman, rata-rata `p_calibrated`, dan rata-rata bunga per tingkat risiko rating (`skos:broader`, termasuk `bo:TingkatTidakTersedia` / `"Tidak tersedia"`) dan negara. |
 | `ontology/queries/q2.rq` | Query SPARQL Q2: jumlah teramati, jumlah gagal bayar, dan tingkat gagal bayar 12 bulan (`bo:defaultWithin12m`) per negara dan era pencatatan. |
 | `ontology/queries/q3.rq` | Query SPARQL Q3: daftar pinjaman bertingkat risiko rating rendah (`bo:TingkatRendah`: AA/A/B) namun berpita risiko model tinggi (`bo:PitaRisikoTinggi`, $p \ge 0,35$). |
-| `ontology/queries/q4.rq` | Query SPARQL Q4: pasangan pinjaman berurutan (`bo:precededBy`) di mana peminjam memperoleh pinjaman baru setelah pinjaman pendahulunya berstatus akhir `bo:Default`. |
-| `ontology/queries/q5.rq` | Query SPARQL Q5: perhitungan jumlah pendahulu pada rantai peminjaman ulang melalui *property path* transitif `bo:precededBy+`. |
+| `ontology/queries/q4.rq` | Query SPARQL Q4: pasangan pinjaman berurutan (`bo:precededBy`) di mana pendahulu langsung berakhir `bo:Default`, dipisahkan menurut `bo:defaultDate` menjadi Varian (a) (`LoanDate > defaultDate` pendahulu — pinjaman ulang setelah default) dan Varian (b) (`LoanDate <= defaultDate` pendahulu — pinjaman tumpang-tindih). |
+| `ontology/queries/q5.rq` | Query SPARQL Q5: perhitungan jumlah pendahulu pada rantai peminjaman ulang melalui *property path* transitif `bo:precededBy+` (dengan catatan artefak desain sampel). |
 | `ontology/queries/q6.rq` | Query SPARQL Q6: komposisi portofolio rekomendasi `S3` (`bo:selectedBy bo:StrategiS3`, `n = 5.000`) menurut negara, tingkat risiko SKOS, kelas rating, dan pita tenor beserta rata-rata $p$ dan default 12 bulan aktual. |
 | `ontology/queries/q7.rq` | Query SPARQL Q7: jumlah pinjaman bertipe `rdf:type bo:HighRiskRatedLoan` menurut negara (sebelum vs sesudah inferensi RDFS/OWL-RL). |
 | `ontology/queries/q8.rq` | Query SPARQL Q8: komposisi 4 kelompok hasil pinjaman (`bo:OutcomeGroup`) menurut era pencatatan dan negara asal. |
 
-### b. Tabel Ringkasan (`reports/tables/07_*.csv` — 14 Tabel)
+### b. Tabel Ringkasan (`reports/tables/07_*.csv` — 17 Tabel)
 
 | Nama File | Deskripsi Satu Baris |
 | :--- | :--- |
 | `reports/tables/07_sample_summary.csv` | Ringkasan sampel graf (`20.000` pinjaman, `7.709` peminjam) menurut sumber (`4.000` stratifikasi, `5.000` S3, `11.106` perluasan peminjam), negara, hasil, era, dan 28 strata beserta perbandingan proporsi sampel stratifikasi vs populasi. |
-| `reports/tables/07_graph_stats.csv` | Statistik *knowledge graph*: total triple (`340.461`), triple ontologi (`321`), triple instans (`340.140`), verifikasi muat ulang (`340.461`), waktu bangun/muat, ukuran berkas (`0,713 MB`), jumlah individu per kelas, dan jumlah triple per predikat. |
-| `reports/tables/07_query_timings.csv` | Ringkasan waktu eksekusi (`0,17` s.d. `5,05` detik), jumlah baris hasil, dan status verifikasi silang `pandas` (`LULUS`) untuk Q1–Q8. |
-| `reports/tables/07_q1_rating_tier_country.csv` | Hasil Q1 beserta kolom verifikasi silang `pandas` dan selisih maksimum ($\le 1,42 	imes 10^{-14}$). |
+| `reports/tables/07_graph_stats.csv` | Statistik *knowledge graph*: total triple (`344.904`), triple ontologi (`326`), triple instans (`344.578`), verifikasi muat ulang (`344.904`), waktu bangun/muat, ukuran berkas (`0,741 MB`), jumlah individu per kelas, dan jumlah triple per predikat (termasuk `4.438` triple `bo:defaultDate`). |
+| `reports/tables/07_query_timings.csv` | Ringkasan waktu eksekusi (`0,17` s.d. `14,68` detik), jumlah baris hasil, dan status verifikasi silang `pandas` (`LULUS`) untuk Q1–Q8. |
+| `reports/tables/07_q1_rating_tier_country.csv` | Hasil Q1 beserta baris dan catatan jumlah pinjaman tanpa rating (`"Tidak tersedia"` / `TingkatTidakTersedia`: `n = 126` di `EE`, `0` di `ES/FI/SK`), kolom verifikasi silang `pandas`, dan selisih maksimum ($\le 1,42 \times 10^{-14}$). |
 | `reports/tables/07_q2_default12m_country_era.csv` | Hasil Q2 (`n = 17.455` pinjaman teramati 12 bulan di graf) beserta kolom verifikasi silang `pandas`. |
 | `reports/tables/07_q3_rating_vs_model_mismatch.csv` | Hasil Q3 (`10` pinjaman rating `A`/`B` dengan `p_calibrated >= 0,35`, di mana `4` pinjaman gagal bayar dalam 12 bulan). |
-| `reports/tables/07_q4_repeat_borrower_after_default.csv` | Hasil Q4 (`1.792` pasangan transisi pinjaman dari `837` peminjam unik pasca-default, dengan `94,03%` kembali berakhir `Default`). |
+| `reports/tables/07_q4_repeat_borrower_after_default.csv` | Rincian pasangan transisi Q4 (`1.789` pasangan dengan `bo:defaultDate`: `90` pasangan Varian (a) `a_setelah_default` dan `1.699` pasangan Varian (b) `b_tumpang_tindih`). |
+| `reports/tables/07_q4_variants_summary.csv` | Ringkasan Q4 menurut Varian (a) (`90` pasangan, `89` peminjam, `30,00%` berakhir `Default`) vs Varian (b) (`1.699` pasangan, `773` peminjam, `97,59%` berakhir `Default`), pembanding tingkat dasar (pendahulu tidak default `2,42%` semua status / `7,43%` selesai; semua pinjaman selesai `44,71%`), serta analisis `S3` (`67` pinjaman S3 dengan pendahulu langsung default sebelum `LoanDate` memiliki default 12m aktual `22,39%` vs sisa S3 `19,20%`; `97` pinjaman S3 di rantai `bo:precededBy+` `19,59%` vs `19,23%`). |
 | `reports/tables/07_q5_repeat_chain_lengths.csv` | Hasil Q5 pada level pinjaman lanjutan (`12.291` baris `bo:precededBy+`) beserta jumlah pendahulu dan panjang rantai. |
-| `reports/tables/07_q5_chain_distribution.csv` | Distribusi panjang rantai peminjaman ulang untuk seluruh `7.709` peminjam di graf (panjang rantai `1` s.d. `27` pinjaman, terverifikasi identik antara SPARQL dan `pandas`). |
+| `reports/tables/07_q5_chain_distribution.csv` | Distribusi panjang rantai peminjaman ulang untuk seluruh `7.709` peminjam di graf (`1` s.d. `27` pinjaman, terverifikasi identik antara SPARQL dan `pandas`) disertai catatan bahwa panjang rantai dan persentase peminjam berulang (`41,68%`) adalah artefak desain sampel dan bukan statistik populasi. |
+| `reports/tables/07_q5_s3_borrower_concentration.csv` | Distribusi jumlah pinjaman `S3` per peminjam (`5.000` pinjaman dari `4.242` peminjam unik: `1` s.d. `7` pinjaman/peminjam) dan default 12 bulan aktual menurut jumlah pinjaman `S3` per peminjam (`1` pinjaman: `20,51%`; `2`: `17,95%`; `3`: `9,85%`; subtotal `>= 2`: `15,98%`). |
 | `reports/tables/07_q6_s3_composition_sparql.csv` | Hasil Q6 (`39` segmen portofolio `S3`, mereproduksi eksak 100% angka Tahap 5: EE `70,00%`, ES `21,62%`, FI `8,38%`; F+HR `22,94%`; Tenor 60 bln `59,20%`; default 12m aktual `19,24%`). |
 | `reports/tables/07_q7_high_risk_inferred.csv` | Perbandingan jumlah individu `bo:HighRiskRatedLoan` per negara sebelum inferensi (`0`), sesudah inferensi OWL-RL (`6.960`), via *property path* `skos:broader+` (`6.960`), dan hitungan `pandas` (`6.960`). |
 | `reports/tables/07_q8_outcome_era_country.csv` | Hasil Q8 komposisi 4 kelompok hasil menurut era dan negara beserta verifikasi silang `pandas`. |
-| `reports/tables/07_inference_summary.csv` | Ringkasan penutupan deduktif `owlrl.DeductiveClosure` pada salinan graf (`340.461 -> 438.342` triple; `bo:DefaultedLoan = 4.460`, `bo:CensoredLoan = 10.024`, `bo:HighRiskRatedLoan = 6.960`). |
-| `reports/tables/07_insight_action.csv` | Tabel *Insight & Action* (5 baris) yang memetakan reproduksi temuan Tahap 2–5 dan temuan relasional baru (Q4 & Q5) beserta implikasi kebijakan portofolio. |
+| `reports/tables/07_inference_summary.csv` | Ringkasan penutupan deduktif `owlrl.DeductiveClosure` pada salinan graf (`344.904 -> 425.705` triple; `bo:DefaultedLoan = 4.460`, `bo:CensoredLoan = 10.024`, `bo:HighRiskRatedLoan = 6.960`). |
+| `reports/tables/07_insight_action.csv` | Tabel *Insight & Action* (5 baris) dengan acuan populasi baris 1 & 2 diambil langsung (`assert`) dari `03_default_rate_horizon_by_segment.csv` dan `03_rating_vs_observed_12m.csv` (populasi `29,06%`), pemisahan Q4 Varian (a) vs (b) + analisis S3 pada baris 4, serta catatan artefak sampel dan konsentrasi peminjam S3 pada baris 5. |
+| `reports/tables/07_example_subgraph_loans.csv` | Tabel pendamping subgraf contoh `"Peminjam A"` (`ES`) yang mencantumkan `LoanNumber` (`1571624`, `1752900`, `1933569`), tanggal pencairan, `defaultDate`, dan atribut ketiga pinjaman berurutan. |
 
 ### c. Grafik Visualisasi (`reports/figures/07_*.png` & HTML Interaktif)
 
 | Nama File | Deskripsi Satu Baris |
 | :--- | :--- |
-| `reports/figures/07_ontology_schema.png` | Diagram skema ontologi kelas utama, kelas terdefinisi inferensi OWL-RL, properti objek (`bo:precededBy`, dll.), dan properti data. |
-| `reports/figures/07_kg_example_subgraph.png` | Subgraf contoh nyata peminjam `bo:Borrower_BO1113924` (`ES`) dengan rantai 3 pinjaman (`LoanNumber`: `1571624 <- 1752900 <- 1933569`), taksonomi SKOS, hasil `bo:Default`, dan seleksi `bo:StrategiS3`. |
+| `reports/figures/07_ontology_schema.png` | Diagram skema ontologi kelas utama, kelas terdefinisi inferensi OWL-RL, properti objek (`bo:precededBy`, dll.), dan properti data (termasuk `bo:defaultDate`). |
+| `reports/figures/07_kg_example_subgraph.png` | Subgraf contoh nyata berlabel generik `"Peminjam A"` (`ES`) dengan rantai 3 pinjaman (`Pinjaman 1 <- Pinjaman 2 <- Pinjaman 3`; `LoanNumber` disebut hanya di tabel pendamping `07_example_subgraph_loans.csv`), taksonomi SKOS, hasil `bo:Default`, dan seleksi `bo:StrategiS3`. |
 | `reports/figures/07_taxonomy_rating_risk.png` | Pohon taksonomi SKOS `bo:RatingClass -> skos:broader -> bo:RiskTier` (*definisi proyek*) berdampingan dengan 4 konsep `bo:OutcomeGroup`, 3 `bo:RiskBand`, dan 2 `bo:Era`. |
-| `reports/figures/07_triples_by_predicate.png` | Grafik batang horizontal distribusi jumlah triple per predikat pada *knowledge graph* (`340.461` triple). |
+| `reports/figures/07_triples_by_predicate.png` | Grafik batang horizontal distribusi jumlah triple per predikat pada *knowledge graph* (`344.904` triple, termasuk `bo:defaultDate`). |
 | `reports/07_kg_interactive.html` | Visualisasi subgraf jaringan interaktif berbasis `pyvis` (`0,695 MB` $< 5\text{ MB}$) untuk 8 peminjam berulang dan 27 pinjaman. |
 
 ### d. Usulan Pilihan (6 Tabel & Grafik) untuk Deck Laporan (PPT) — Tahap 6 (3 Slide)
 - **Slide 1 (Ontologi & Taksonomi Semantik):** `07_ontology_schema.png` + `07_taxonomy_rating_risk.png`.
 - **Slide 2 (Struktur Knowledge Graph & Contoh Subgraf Rantai Pinjaman):** `07_kg_example_subgraph.png` + `07_graph_stats.csv` (atau `07_triples_by_predicate.png`).
-- **Slide 3 (Hasil Query SPARQL, Inferensi OWL-RL, & Insight Relasional):** `07_insight_action.csv` + `07_q5_chain_distribution.csv` (bersama ringkasan `07_inference_summary.csv`).
+- **Slide 3 (Hasil Query SPARQL, Inferensi OWL-RL, & Insight Relasional):** `07_insight_action.csv` + `07_q4_variants_summary.csv` (bersama `07_q5_s3_borrower_concentration.csv` dan `07_inference_summary.csv`).

@@ -43,13 +43,18 @@ def local_name(uri_or_val: Any) -> str:
     return s
 
 
+def _fmt_pct_id(val_pct: float, decimals: int = 2) -> str:
+    """Format percentage float with Indonesian comma decimal separator."""
+    return f"{val_pct:.{decimals}f}%".replace(".", ",")
+
+
 class FastOWLRLSemantics(owlrl.OWLRL_Semantics):
     """Optimized OWL-RL + RDFS closure semantics for ABox graphs with large literal counts.
 
     Standard ``owlrl.OWLRL_Semantics`` replaces every literal with a blank node proxy inside an
     ``O(N^2)`` list membership check and materializes reflexive ``owl:sameAs`` triples on every node.
     Since ``datatype_axioms=False`` and no ``owl:sameAs`` identity assertions are used in the Bondora
-    ontology, skipping literal proxy generation and reflexive ``owl:sameAs`` reduces runtime on 340k
+    ontology, skipping literal proxy generation and reflexive ``owl:sameAs`` reduces runtime on 345k
     triples from hours to ~1.5 seconds while preserving exact class/property deductive closure
     (``rdfs:subClassOf``, ``rdfs:domain``, ``rdfs:range``, ``owl:equivalentClass``, ``owl:intersectionOf``,
     ``owl:unionOf``, ``owl:Restriction``, ``owl:hasValue``, ``owl:someValuesFrom``).
@@ -80,10 +85,14 @@ class FastOWLRLSemantics(owlrl.OWLRL_Semantics):
                 for cls_target in self._hv_map.get((p, o), ()):
                     self.store_triple((s, RDF.type, cls_target))
             return
+        if p in (RDFS.domain, RDFS.range, RDFS.label, RDFS.comment):
+            return
         if p == RDF.type and o in self._ABOX_CLASSES:
             if cycle_num <= 2:
                 for sup in self._sub_map.get(o, ()):
                     self.store_triple((s, RDF.type, sup))
+            return
+        if p == RDF.type and o in (OWL.Thing, RDFS.Resource):
             return
         super().rules(t, cycle_num)
 
@@ -132,6 +141,7 @@ class FastOWLRLSemantics(owlrl.OWLRL_Semantics):
             BO.interestPct,
             BO.loanDurationMonths,
             BO.loanDate,
+            BO.defaultDate,
             BO.defaultWithin12m,
             BO.predictedDefaultProb12m,
             BO.returnRatio,
@@ -285,8 +295,16 @@ def _extract_query_comment(rq_path: Path) -> str:
     return " ".join(lines)
 
 
+RISK_TIER_READABLE_MAP: dict[str, str] = {
+    "TingkatRendah": "Rendah (AA, A, B)",
+    "TingkatMenengah": "Menengah (C, D)",
+    "TingkatTinggi": "Tinggi (E, F, HR)",
+    "TingkatTidakTersedia": "Tidak tersedia (tanpa rating)",
+}
+
+
 def run_q1(g: Graph, df_prep: pd.DataFrame) -> tuple[pd.DataFrame, float]:
-    """Execute Q1 (`q1.rq`) and cross-check with pandas."""
+    """Execute Q1 (`q1.rq`) and cross-check with pandas, including explicit note/row for 'Tidak tersedia'."""
     rq_text = (QUERIES_DIR / "q1.rq").read_text(encoding="utf-8")
     t0 = time.perf_counter()
     res = list(g.query(rq_text))
@@ -300,6 +318,7 @@ def run_q1(g: Graph, df_prep: pd.DataFrame) -> tuple[pd.DataFrame, float]:
             {
                 "country": c_code,
                 "risk_tier": rt_code,
+                "label_tingkat_risiko": RISK_TIER_READABLE_MAP.get(rt_code, rt_code),
                 "n_pinjaman": int(r.n_pinjaman),
                 "p_calibrated_rata2": float(r.p_calibrated_rata2),
                 "interest_rata2_pct": float(r.interest_rata2_pct),
@@ -328,6 +347,22 @@ def run_q1(g: Graph, df_prep: pd.DataFrame) -> tuple[pd.DataFrame, float]:
     merged["selisih_maks"] = np.maximum(
         np.abs(merged["p_calibrated_rata2"] - merged["pandas_p_calibrated_rata2"]),
         np.abs(merged["interest_rata2_pct"] - merged["pandas_interest_rata2_pct"]),
+    )
+
+    n_unrated_total = int((df_prep["risk_tier"] == "TingkatTidakTersedia").sum())
+    unrated_by_c = (
+        df_prep[df_prep["risk_tier"] == "TingkatTidakTersedia"]
+        .groupby("Country", observed=True)["LoanNumber"]
+        .count()
+        .to_dict()
+    )
+    unrated_detail = ", ".join(
+        f"{c}={int(unrated_by_c.get(c, 0))}" for c in sorted(df_prep["Country"].unique())
+    )
+    merged["catatan"] = np.where(
+        merged["risk_tier"] == "TingkatTidakTersedia",
+        f"Pinjaman tanpa rating ('Tidak tersedia'): total sampel n={n_unrated_total} ({unrated_detail})",
+        f"Taksonomi SKOS bo:RiskTier (catatan: total pinjaman tanpa rating 'Tidak tersedia' di sampel = {n_unrated_total}; {unrated_detail})",
     )
     return merged, elapsed
 
@@ -431,8 +466,10 @@ def run_q3(g: Graph, df_prep: pd.DataFrame) -> tuple[pd.DataFrame, float]:
     return df_sparql, elapsed
 
 
-def run_q4(g: Graph, df_prep: pd.DataFrame) -> tuple[pd.DataFrame, float]:
-    """Execute Q4 (`q4.rq`) and cross-check with pandas."""
+def run_q4(
+    g: Graph, df_prep: pd.DataFrame
+) -> tuple[pd.DataFrame, pd.DataFrame, float]:
+    """Execute Q4 (`q4.rq`) with variants (a) and (b), base-rate comparisons, S3 checks, and pandas cross-checks."""
     rq_text = (QUERIES_DIR / "q4.rq").read_text(encoding="utf-8")
     t0 = time.perf_counter()
     res = list(g.query(rq_text))
@@ -446,33 +483,351 @@ def run_q4(g: Graph, df_prep: pd.DataFrame) -> tuple[pd.DataFrame, float]:
         next_num = int(local_name(r.nextLoan).replace("Loan_", ""))
         rows.append(
             {
+                "varian": str(r.varian),
                 "borrower_uri_id": b_id,
                 "country": c_code,
                 "prev_loan_number": prev_num,
                 "prev_loan_date": str(r.prevDate),
+                "prev_default_date": str(r.prevDefaultDate),
                 "next_loan_number": next_num,
                 "next_loan_date": str(r.nextDate),
                 "next_outcome_code": local_name(r.nextOutcome),
                 "next_p_calibrated": float(r.nextP),
             }
         )
-    df_sparql = pd.DataFrame(rows).sort_values(["prev_loan_number", "next_loan_number"]).reset_index(drop=True)
+    if rows:
+        df_sparql = (
+            pd.DataFrame(rows)
+            .sort_values(["varian", "prev_loan_number", "next_loan_number"])
+            .reset_index(drop=True)
+        )
+    else:
+        df_sparql = pd.DataFrame(
+            columns=[
+                "varian",
+                "borrower_uri_id",
+                "country",
+                "prev_loan_number",
+                "prev_loan_date",
+                "prev_default_date",
+                "next_loan_number",
+                "next_loan_date",
+                "next_outcome_code",
+                "next_p_calibrated",
+            ]
+        )
 
-    sub_pd = df_prep[df_prep["prev_outcome_code"] == "Default"].copy()
+    # Pandas cross-check for Q4 variants (a) and (b)
+    sub_pd = df_prep[
+        (df_prep["prev_outcome_code"] == "Default") & df_prep["prev_default_date_str"].notna()
+    ].copy()
     sub_pd["prev_loan_number_int"] = sub_pd["prev_loan_number"].astype("int64")
-    sub_pd = sub_pd.sort_values(["prev_loan_number_int", "LoanNumber"]).reset_index(drop=True)
+    sub_pd["varian"] = np.where(
+        sub_pd["loan_date_str"] > sub_pd["prev_default_date_str"],
+        "a_setelah_default",
+        "b_tumpang_tindih",
+    )
+    sub_pd = sub_pd.sort_values(["varian", "prev_loan_number_int", "LoanNumber"]).reset_index(drop=True)
 
     assert len(df_sparql) == len(sub_pd), f"Q4 count mismatch: {len(df_sparql)} vs {len(sub_pd)}"
-    assert df_sparql["borrower_uri_id"].nunique() == sub_pd["UserName"].nunique()
-    assert (df_sparql["prev_loan_number"].to_numpy() == sub_pd["prev_loan_number_int"].to_numpy()).all()
-    assert (df_sparql["next_loan_number"].to_numpy() == sub_pd["LoanNumber"].to_numpy()).all()
-    assert (df_sparql["next_outcome_code"].to_numpy() == sub_pd["outcome_code"].to_numpy()).all()
-    assert np.allclose(df_sparql["next_p_calibrated"], sub_pd["p_calibrated"], atol=1e-9)
-    return df_sparql, elapsed
+    if len(df_sparql) > 0:
+        assert (df_sparql["varian"].to_numpy() == sub_pd["varian"].to_numpy()).all()
+        assert df_sparql["borrower_uri_id"].nunique() == sub_pd["UserName"].nunique()
+        assert (df_sparql["prev_loan_number"].to_numpy() == sub_pd["prev_loan_number_int"].to_numpy()).all()
+        assert (df_sparql["prev_default_date"].to_numpy() == sub_pd["prev_default_date_str"].to_numpy()).all()
+        assert (df_sparql["next_loan_number"].to_numpy() == sub_pd["LoanNumber"].to_numpy()).all()
+        assert (df_sparql["next_loan_date"].to_numpy() == sub_pd["loan_date_str"].to_numpy()).all()
+        assert (df_sparql["next_outcome_code"].to_numpy() == sub_pd["outcome_code"].to_numpy()).all()
+        assert np.allclose(df_sparql["next_p_calibrated"], sub_pd["p_calibrated"], atol=1e-9)
+
+    # Base-rate 1 via SPARQL: all follow-up loans whose direct predecessor did NOT default
+    q_base_prev_nondef = """
+    PREFIX bo: <http://example.org/bondora#>
+    SELECT ?nextLoan ?borrower ?nextOutcome ?nextIsRes
+    WHERE {
+        ?nextLoan bo:precededBy ?prevLoan ;
+                  bo:hasBorrower ?borrower ;
+                  bo:hasOutcome ?nextOutcome ;
+                  bo:isResolved ?nextIsRes .
+        ?prevLoan bo:hasOutcome ?prevOutcome .
+        FILTER(?prevOutcome != bo:Default)
+    }
+    """
+    res_base1 = list(g.query(q_base_prev_nondef))
+    b1_total = len(res_base1)
+    b1_borrowers = len({local_name(r.borrower) for r in res_base1})
+    b1_def = sum(1 for r in res_base1 if local_name(r.nextOutcome) == "Default")
+    b1_res_rows = [r for r in res_base1 if bool(r.nextIsRes.toPython())]
+    b1_res_total = len(b1_res_rows)
+    b1_res_borrowers = len({local_name(r.borrower) for r in b1_res_rows})
+    b1_res_def = sum(1 for r in b1_res_rows if local_name(r.nextOutcome) == "Default")
+
+    # Pandas check for Base-rate 1
+    pd_b1 = df_prep[(df_prep["chain_position"] > 1) & (df_prep["prev_outcome_code"] != "Default")]
+    pd_b1_res = pd_b1[pd_b1["is_resolved"].astype(bool)]
+    assert b1_total == len(pd_b1)
+    assert b1_borrowers == int(pd_b1["UserName"].nunique())
+    assert b1_def == int((pd_b1["outcome_code"] == "Default").sum())
+    assert b1_res_total == len(pd_b1_res)
+    assert b1_res_borrowers == int(pd_b1_res["UserName"].nunique())
+    assert b1_res_def == int((pd_b1_res["outcome_code"] == "Default").sum())
+
+    # Base-rate 2 via SPARQL: all resolved loans in graph
+    q_base_resolved = """
+    PREFIX bo: <http://example.org/bondora#>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    SELECT ?loan ?borrower ?outcome
+    WHERE {
+        ?loan rdf:type bo:Loan ;
+              bo:isResolved true ;
+              bo:hasBorrower ?borrower ;
+              bo:hasOutcome ?outcome .
+    }
+    """
+    res_base2 = list(g.query(q_base_resolved))
+    b2_total = len(res_base2)
+    b2_borrowers = len({local_name(r.borrower) for r in res_base2})
+    b2_def = sum(1 for r in res_base2 if local_name(r.outcome) == "Default")
+
+    pd_b2 = df_prep[df_prep["is_resolved"].astype(bool)]
+    assert b2_total == len(pd_b2)
+    assert b2_borrowers == int(pd_b2["UserName"].nunique())
+    assert b2_def == int((pd_b2["outcome_code"] == "Default").sum())
+
+    # S3 check via SPARQL:
+    # (1) S3 loans with direct predecessor (bo:precededBy) having defaultDate < LoanDate
+    q_s3_direct = """
+    PREFIX bo: <http://example.org/bondora#>
+    SELECT ?loan ?borrower ?d12
+    WHERE {
+        ?loan bo:selectedBy bo:StrategiS3 ;
+              bo:hasBorrower ?borrower ;
+              bo:loanDate ?nextDate ;
+              bo:defaultWithin12m ?d12 ;
+              bo:precededBy ?prevLoan .
+        ?prevLoan bo:hasOutcome ?prevOutcome ;
+                  bo:defaultDate ?prevDefaultDate .
+        FILTER(?prevOutcome = bo:Default && ?nextDate > ?prevDefaultDate)
+    }
+    """
+    res_s3_dir = list(g.query(q_s3_direct))
+    s3_dir_loans = {int(local_name(r.loan).replace("Loan_", "")) for r in res_s3_dir}
+    s3_dir_borrowers = len({local_name(r.borrower) for r in res_s3_dir})
+    s3_dir_d12 = sum(1 for r in res_s3_dir if bool(r.d12.toPython()))
+
+    # (2) S3 loans with ANY predecessor in chain (bo:precededBy+) having defaultDate < LoanDate
+    q_s3_any = """
+    PREFIX bo: <http://example.org/bondora#>
+    SELECT DISTINCT ?loan ?borrower ?d12
+    WHERE {
+        ?loan bo:selectedBy bo:StrategiS3 ;
+              bo:hasBorrower ?borrower ;
+              bo:loanDate ?nextDate ;
+              bo:defaultWithin12m ?d12 ;
+              bo:precededBy+ ?ancLoan .
+        ?ancLoan bo:hasOutcome ?ancOutcome ;
+                 bo:defaultDate ?ancDefaultDate .
+        FILTER(?ancOutcome = bo:Default && ?nextDate > ?ancDefaultDate)
+    }
+    """
+    res_s3_any = list(g.query(q_s3_any))
+    s3_any_loans = {int(local_name(r.loan).replace("Loan_", "")) for r in res_s3_any}
+    s3_any_borrowers = len({local_name(r.borrower) for r in res_s3_any})
+    s3_any_d12 = sum(1 for r in res_s3_any if bool(r.d12.toPython()))
+
+    # Pandas cross-check for S3 prior default before LoanDate
+    s3_pd = df_prep[df_prep["in_s3"]].copy()
+    if len(s3_pd) > 0:
+        s3_pd["d12_int"] = s3_pd[DEFAULT_12M_COL].astype(int)
+    else:
+        s3_pd["d12_int"] = pd.Series(dtype="int64")
+
+    pd_s3_dir = s3_pd[
+        (s3_pd["prev_outcome_code"] == "Default")
+        & s3_pd["prev_default_date_str"].notna()
+        & (s3_pd["loan_date_str"] > s3_pd["prev_default_date_str"])
+    ]
+    pd_s3_rest_dir = s3_pd[~s3_pd["LoanNumber"].isin(pd_s3_dir["LoanNumber"])]
+    assert s3_dir_loans == set(pd_s3_dir["LoanNumber"].astype(int).tolist())
+    assert s3_dir_borrowers == int(pd_s3_dir["UserName"].nunique())
+    assert s3_dir_d12 == int(pd_s3_dir["d12_int"].sum())
+
+    # Pandas ANY ancestor in chain with Default and defaultDate < LoanDate
+    any_prior_def_loans: set[int] = set()
+    for _, grp in df_prep.groupby("UserName", observed=True):
+        if len(grp) < 2:
+            continue
+        min_def_date: str | None = None
+        for _, r_row in grp.iterrows():
+            ld = str(r_row["loan_date_str"])
+            if min_def_date is not None and ld > min_def_date:
+                any_prior_def_loans.add(int(r_row["LoanNumber"]))
+            if r_row["outcome_code"] == "Default" and pd.notna(r_row["default_date_str"]):
+                dd = str(r_row["default_date_str"])
+                if min_def_date is None or dd < min_def_date:
+                    min_def_date = dd
+
+    pd_s3_any = s3_pd[s3_pd["LoanNumber"].isin(any_prior_def_loans)]
+    pd_s3_rest_any = s3_pd[~s3_pd["LoanNumber"].isin(any_prior_def_loans)]
+    assert s3_any_loans == set(pd_s3_any["LoanNumber"].astype(int).tolist())
+    assert s3_any_borrowers == int(pd_s3_any["UserName"].nunique())
+    assert s3_any_d12 == int(pd_s3_any["d12_int"].sum())
+
+    # Variant summaries from SPARQL + pandas
+    va_sp = df_sparql[df_sparql["varian"] == "a_setelah_default"]
+    vb_sp = df_sparql[df_sparql["varian"] == "b_tumpang_tindih"]
+    va_pd = sub_pd[sub_pd["varian"] == "a_setelah_default"]
+    vb_pd = sub_pd[sub_pd["varian"] == "b_tumpang_tindih"]
+    vc_pd = df_prep[(df_prep["prev_outcome_code"] == "Default") & df_prep["prev_default_date_str"].isna()]
+
+    def _pct(num: int, den: int) -> float:
+        return (num / den * 100.0) if den > 0 else np.nan
+
+    summary_rows = [
+        {
+            "kelompok": "Varian (a) — Pinjaman ulang SETELAH bo:defaultDate pendahulu langsung (LoanDate > defaultDate)",
+            "kode_varian": "a_setelah_default",
+            "jumlah_pasangan_atau_pinjaman": len(va_sp),
+            "jumlah_peminjam": int(va_sp["borrower_uri_id"].nunique()) if len(va_sp) else 0,
+            "n_berakhir_default": int((va_sp["next_outcome_code"] == "Default").sum()),
+            "persen_berakhir_default": _pct(int((va_sp["next_outcome_code"] == "Default").sum()), len(va_sp)),
+            "n_di_s3": int(va_pd["in_s3"].sum()),
+            "n_default_12m_di_s3": int(pd_s3_dir["d12_int"].sum()),
+            "persen_default_12m_di_s3": _pct(int(pd_s3_dir["d12_int"].sum()), len(pd_s3_dir)),
+            "catatan": "Pinjaman ulang sejati setelah pendahulu langsung tercatat default (LoanDate > bo:defaultDate)",
+        },
+        {
+            "kelompok": "Varian (b) — Pinjaman lanjutan SEBELUM/SAMA DENGAN bo:defaultDate pendahulu (tumpang-tindih, LoanDate <= defaultDate)",
+            "kode_varian": "b_tumpang_tindih",
+            "jumlah_pasangan_atau_pinjaman": len(vb_sp),
+            "jumlah_peminjam": int(vb_sp["borrower_uri_id"].nunique()) if len(vb_sp) else 0,
+            "n_berakhir_default": int((vb_sp["next_outcome_code"] == "Default").sum()),
+            "persen_berakhir_default": _pct(int((vb_sp["next_outcome_code"] == "Default").sum()), len(vb_sp)),
+            "n_di_s3": int(vb_pd["in_s3"].sum()),
+            "n_default_12m_di_s3": int(vb_pd[vb_pd["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(vb_pd["in_s3"].sum()) > 0 else 0,
+            "persen_default_12m_di_s3": _pct(
+                int(vb_pd[vb_pd["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(vb_pd["in_s3"].sum()) > 0 else 0,
+                int(vb_pd["in_s3"].sum()),
+            ),
+            "catatan": "Pinjaman tumpang-tindih: dicairkan saat pinjaman lama belum default, lalu keduanya gagal bayar",
+        },
+        {
+            "kelompok": "Pendahulu Default tanpa bo:defaultDate (Status=Repaid dengan penghapusan pokok/bunga)",
+            "kode_varian": "tanpa_default_date",
+            "jumlah_pasangan_atau_pinjaman": len(vc_pd),
+            "jumlah_peminjam": int(vc_pd["UserName"].nunique()) if len(vc_pd) else 0,
+            "n_berakhir_default": int((vc_pd["outcome_code"] == "Default").sum()),
+            "persen_berakhir_default": _pct(int((vc_pd["outcome_code"] == "Default").sum()), len(vc_pd)),
+            "n_di_s3": int(vc_pd["in_s3"].sum()),
+            "n_default_12m_di_s3": int(vc_pd[vc_pd["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(vc_pd["in_s3"].sum()) > 0 else 0,
+            "persen_default_12m_di_s3": _pct(
+                int(vc_pd[vc_pd["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(vc_pd["in_s3"].sum()) > 0 else 0,
+                int(vc_pd["in_s3"].sum()),
+            ),
+            "catatan": "Tidak masuk Varian (a) maupun (b) karena DefaultDate kosong pada pendahulu",
+        },
+        {
+            "kelompok": "Pembanding Tingkat Dasar 1a — Semua pinjaman lanjutan yang pendahulunya TIDAK Default (semua status)",
+            "kode_varian": "pembanding_lanjut_prev_non_default_semua",
+            "jumlah_pasangan_atau_pinjaman": b1_total,
+            "jumlah_peminjam": b1_borrowers,
+            "n_berakhir_default": b1_def,
+            "persen_berakhir_default": _pct(b1_def, b1_total),
+            "n_di_s3": int(pd_b1["in_s3"].sum()),
+            "n_default_12m_di_s3": int(pd_b1[pd_b1["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(pd_b1["in_s3"].sum()) > 0 else 0,
+            "persen_default_12m_di_s3": _pct(
+                int(pd_b1[pd_b1["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(pd_b1["in_s3"].sum()) > 0 else 0,
+                int(pd_b1["in_s3"].sum()),
+            ),
+            "catatan": "Sebagian besar pinjaman lanjutan 2021-2022 masih berstatus Current sehingga belum selesai",
+        },
+        {
+            "kelompok": "Pembanding Tingkat Dasar 1b — Pinjaman lanjutan SELESAI (isResolved=true) yang pendahulunya TIDAK Default",
+            "kode_varian": "pembanding_lanjut_prev_non_default_selesai",
+            "jumlah_pasangan_atau_pinjaman": b1_res_total,
+            "jumlah_peminjam": b1_res_borrowers,
+            "n_berakhir_default": b1_res_def,
+            "persen_berakhir_default": _pct(b1_res_def, b1_res_total),
+            "n_di_s3": int(pd_b1_res["in_s3"].sum()),
+            "n_default_12m_di_s3": int(pd_b1_res[pd_b1_res["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(pd_b1_res["in_s3"].sum()) > 0 else 0,
+            "persen_default_12m_di_s3": _pct(
+                int(pd_b1_res[pd_b1_res["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(pd_b1_res["in_s3"].sum()) > 0 else 0,
+                int(pd_b1_res["in_s3"].sum()),
+            ),
+            "catatan": "Pembanding khusus pinjaman lanjutan yang sudah mencapai status akhir (Default / RepaidNoDefault)",
+        },
+        {
+            "kelompok": "Pembanding Tingkat Dasar 2 — Semua pinjaman selesai (bo:isResolved true) di dalam graf",
+            "kode_varian": "pembanding_semua_pinjaman_selesai_graf",
+            "jumlah_pasangan_atau_pinjaman": b2_total,
+            "jumlah_peminjam": b2_borrowers,
+            "n_berakhir_default": b2_def,
+            "persen_berakhir_default": _pct(b2_def, b2_total),
+            "n_di_s3": int(pd_b2["in_s3"].sum()),
+            "n_default_12m_di_s3": int(pd_b2[pd_b2["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(pd_b2["in_s3"].sum()) > 0 else 0,
+            "persen_default_12m_di_s3": _pct(
+                int(pd_b2[pd_b2["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(pd_b2["in_s3"].sum()) > 0 else 0,
+                int(pd_b2["in_s3"].sum()),
+            ),
+            "catatan": "Tingkat dasar Default pada seluruh 9.976 pinjaman selesai di graf sampel",
+        },
+        {
+            "kelompok": "Portofolio S3 — Pinjaman S3 dengan pendahulu langsung default SEBELUM LoanDate-nya (bo:precededBy, Varian a)",
+            "kode_varian": "s3_pendahulu_langsung_default_sebelum_loandate",
+            "jumlah_pasangan_atau_pinjaman": len(pd_s3_dir),
+            "jumlah_peminjam": s3_dir_borrowers,
+            "n_berakhir_default": int((pd_s3_dir["outcome_code"] == "Default").sum()),
+            "persen_berakhir_default": _pct(int((pd_s3_dir["outcome_code"] == "Default").sum()), len(pd_s3_dir)),
+            "n_di_s3": len(pd_s3_dir),
+            "n_default_12m_di_s3": s3_dir_d12,
+            "persen_default_12m_di_s3": _pct(s3_dir_d12, len(pd_s3_dir)),
+            "catatan": "Default 12m aktual S3 = 22,39% (15/67) vs sisa S3 = 19,20% (947/4.933)",
+        },
+        {
+            "kelompok": "Portofolio S3 — Sisa pinjaman S3 (tanpa pendahulu langsung default sebelum LoanDate-nya)",
+            "kode_varian": "s3_sisa_tanpa_pendahulu_langsung_default_sebelum_loandate",
+            "jumlah_pasangan_atau_pinjaman": len(pd_s3_rest_dir),
+            "jumlah_peminjam": int(pd_s3_rest_dir["UserName"].nunique()) if len(pd_s3_rest_dir) else 0,
+            "n_berakhir_default": int((pd_s3_rest_dir["outcome_code"] == "Default").sum()),
+            "persen_berakhir_default": _pct(int((pd_s3_rest_dir["outcome_code"] == "Default").sum()), len(pd_s3_rest_dir)),
+            "n_di_s3": len(pd_s3_rest_dir),
+            "n_default_12m_di_s3": int(pd_s3_rest_dir["d12_int"].sum()),
+            "persen_default_12m_di_s3": _pct(int(pd_s3_rest_dir["d12_int"].sum()), len(pd_s3_rest_dir)),
+            "catatan": "Pembanding sisa S3 untuk definisi pendahulu langsung (bo:precededBy)",
+        },
+        {
+            "kelompok": "Portofolio S3 — Pinjaman S3 dengan pendahulu MANA PUN di rantai default SEBELUM LoanDate-nya (bo:precededBy+)",
+            "kode_varian": "s3_pendahulu_rantai_default_sebelum_loandate",
+            "jumlah_pasangan_atau_pinjaman": len(pd_s3_any),
+            "jumlah_peminjam": s3_any_borrowers,
+            "n_berakhir_default": int((pd_s3_any["outcome_code"] == "Default").sum()),
+            "persen_berakhir_default": _pct(int((pd_s3_any["outcome_code"] == "Default").sum()), len(pd_s3_any)),
+            "n_di_s3": len(pd_s3_any),
+            "n_default_12m_di_s3": s3_any_d12,
+            "persen_default_12m_di_s3": _pct(s3_any_d12, len(pd_s3_any)),
+            "catatan": "Default 12m aktual S3 = 19,59% (19/97) vs sisa S3 = 19,23% (943/4.903)",
+        },
+        {
+            "kelompok": "Portofolio S3 — Sisa pinjaman S3 (tanpa pendahulu mana pun di rantai default sebelum LoanDate-nya)",
+            "kode_varian": "s3_sisa_tanpa_pendahulu_rantai_default_sebelum_loandate",
+            "jumlah_pasangan_atau_pinjaman": len(pd_s3_rest_any),
+            "jumlah_peminjam": int(pd_s3_rest_any["UserName"].nunique()) if len(pd_s3_rest_any) else 0,
+            "n_berakhir_default": int((pd_s3_rest_any["outcome_code"] == "Default").sum()),
+            "persen_berakhir_default": _pct(int((pd_s3_rest_any["outcome_code"] == "Default").sum()), len(pd_s3_rest_any)),
+            "n_di_s3": len(pd_s3_rest_any),
+            "n_default_12m_di_s3": int(pd_s3_rest_any["d12_int"].sum()),
+            "persen_default_12m_di_s3": _pct(int(pd_s3_rest_any["d12_int"].sum()), len(pd_s3_rest_any)),
+            "catatan": "Pembanding sisa S3 untuk definisi pendahulu mana pun di rantai (bo:precededBy+)",
+        },
+    ]
+    df_q4_summary = pd.DataFrame(summary_rows)
+    return df_sparql, df_q4_summary, elapsed
 
 
-def run_q5(g: Graph, df_prep: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, float]:
-    """Execute Q5 (`q5.rq`) using property path `bo:precededBy+` and cross-check with pandas."""
+def run_q5(
+    g: Graph, df_prep: pd.DataFrame
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, float]:
+    """Execute Q5 (`q5.rq`) using property path `bo:precededBy+`, cross-check with pandas, and compute S3 borrower concentration."""
     rq_text = (QUERIES_DIR / "q5.rq").read_text(encoding="utf-8")
     t0 = time.perf_counter()
     res = list(g.query(rq_text))
@@ -504,7 +859,6 @@ def run_q5(g: Graph, df_prep: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame,
     assert (df_sparql["n_pendahulu"].to_numpy() == sub_pd["n_pendahulu"].to_numpy()).all()
 
     # Build distribution of borrower chain lengths across all borrowers in graph
-    # Borrowers with 1 loan have max chain length = 1; borrowers in Q5 have max chain length = 1 + max(n_pendahulu)
     total_borrowers = int(df_prep["UserName"].nunique())
     if not df_sparql.empty:
         b_max_sparql = df_sparql.groupby("borrower_uri_id", observed=True)["panjang_rantai_pada_pinjaman"].max()
@@ -516,11 +870,15 @@ def run_q5(g: Graph, df_prep: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame,
     for k, v in dist_gt1.items():
         dist_map[int(k)] = int(v)
 
-    # Pandas borrower chain length distribution
     b_max_pd = df_prep.groupby("UserName", observed=True)["chain_position"].max()
     dist_pd_map = {int(k): int(v) for k, v in b_max_pd.value_counts().to_dict().items()}
     assert dist_map == dist_pd_map, f"Q5 chain distribution mismatch: {dist_map} vs {dist_pd_map}"
 
+    sample_note = (
+        "ARTEFAK DESAIN SAMPEL: Panjang rantai dan persentase peminjam berulang dipengaruhi perluasan riwayat parsial "
+        "(hanya 2.869/3.721 peminjam S3 multi-pinjaman diperluas penuh untuk menjaga batas 20.000 pinjaman) "
+        "dan BUKAN statistik populasi."
+    )
     dist_rows = []
     for length_k in sorted(dist_map.keys()):
         cnt_b = dist_map[length_k]
@@ -531,10 +889,109 @@ def run_q5(g: Graph, df_prep: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame,
                 "jumlah_peminjam_pandas": dist_pd_map[length_k],
                 "persen_peminjam": cnt_b / max(1, total_borrowers) * 100.0,
                 "jumlah_pinjaman_dalam_rantai": length_k * cnt_b,
+                "catatan": sample_note,
             }
         )
     df_dist = pd.DataFrame(dist_rows)
-    return df_sparql, df_dist, elapsed
+
+    # Direct calculation on S3: distribution of number of S3 loans per borrower and actual 12m default rate
+    q_s3_borrower = """
+    PREFIX bo: <http://example.org/bondora#>
+    SELECT ?borrower
+           (COUNT(DISTINCT ?loan) AS ?n_s3_loans)
+           (SUM(IF(?d12 = true, 1, 0)) AS ?n_d12)
+           (AVG(?p) AS ?mean_p)
+    WHERE {
+        ?loan bo:selectedBy bo:StrategiS3 ;
+              bo:hasBorrower ?borrower ;
+              bo:defaultWithin12m ?d12 ;
+              bo:predictedDefaultProb12m ?p .
+    }
+    GROUP BY ?borrower
+    """
+    res_s3_b = list(g.query(q_s3_borrower))
+    s3_b_rows = [
+        {
+            "borrower_uri_id": local_name(r.borrower),
+            "n_s3_loans": int(r.n_s3_loans),
+            "n_d12": int(r.n_d12),
+            "sum_p": float(r.mean_p) * int(r.n_s3_loans),
+        }
+        for r in res_s3_b
+    ]
+    df_s3_b_sp = pd.DataFrame(s3_b_rows) if s3_b_rows else pd.DataFrame(columns=["borrower_uri_id", "n_s3_loans", "n_d12", "sum_p"])
+
+    s3_pd = df_prep[df_prep["in_s3"]].copy()
+    if len(s3_pd) > 0:
+        s3_pd["d12_int"] = s3_pd[DEFAULT_12M_COL].astype(int)
+        s3_pd["n_pinjaman_s3_per_peminjam"] = s3_pd.groupby("UserName", observed=True)["LoanNumber"].transform("count")
+    else:
+        s3_pd["d12_int"] = pd.Series(dtype="int64")
+        s3_pd["n_pinjaman_s3_per_peminjam"] = pd.Series(dtype="int64")
+
+    s3_conc_rows = []
+    tot_s3_loans = len(s3_pd)
+    tot_s3_borrowers = int(s3_pd["UserName"].nunique()) if tot_s3_loans > 0 else 0
+    for k_loans, grp in s3_pd.groupby("n_pinjaman_s3_per_peminjam", observed=True):
+        k_int = int(k_loans)
+        n_b_pd = int(grp["UserName"].nunique())
+        n_l_pd = len(grp)
+        n_d12_pd = int(grp["d12_int"].sum())
+        d12_rate_pd = n_d12_pd / max(1, n_l_pd) * 100.0
+        p_mean_pd = float(grp["p_calibrated"].mean()) * 100.0
+
+        sp_k = df_s3_b_sp[df_s3_b_sp["n_s3_loans"] == k_int]
+        n_b_sp = len(sp_k)
+        n_l_sp = int(sp_k["n_s3_loans"].sum())
+        n_d12_sp = int(sp_k["n_d12"].sum())
+        assert n_b_sp == n_b_pd, f"S3 borrower count mismatch for k={k_int}: {n_b_sp} vs {n_b_pd}"
+        assert n_l_sp == n_l_pd, f"S3 loan count mismatch for k={k_int}: {n_l_sp} vs {n_l_pd}"
+        assert n_d12_sp == n_d12_pd, f"S3 d12 mismatch for k={k_int}: {n_d12_sp} vs {n_d12_pd}"
+
+        s3_conc_rows.append(
+            {
+                "jumlah_pinjaman_s3_per_peminjam": str(k_int),
+                "jumlah_peminjam": n_b_pd,
+                "persen_peminjam_s3": n_b_pd / max(1, tot_s3_borrowers) * 100.0,
+                "jumlah_pinjaman_s3": n_l_pd,
+                "persen_pinjaman_s3": n_l_pd / max(1, tot_s3_loans) * 100.0,
+                "n_default_12m_aktual": n_d12_pd,
+                "default_rate_12m_aktual_pct": d12_rate_pd,
+                "p_calibrated_rata2_pct": p_mean_pd,
+                "catatan": "Statistik lengkap portofolio S3 (n=5.000 pinjaman)",
+            }
+        )
+
+    if tot_s3_loans > 0:
+        gt1_grp = s3_pd[s3_pd["n_pinjaman_s3_per_peminjam"] >= 2]
+        s3_conc_rows.append(
+            {
+                "jumlah_pinjaman_s3_per_peminjam": ">=2 (Subtotal multi-pinjaman di S3)",
+                "jumlah_peminjam": int(gt1_grp["UserName"].nunique()),
+                "persen_peminjam_s3": int(gt1_grp["UserName"].nunique()) / max(1, tot_s3_borrowers) * 100.0,
+                "jumlah_pinjaman_s3": len(gt1_grp),
+                "persen_pinjaman_s3": len(gt1_grp) / max(1, tot_s3_loans) * 100.0,
+                "n_default_12m_aktual": int(gt1_grp["d12_int"].sum()),
+                "default_rate_12m_aktual_pct": float(gt1_grp["d12_int"].mean()) * 100.0 if len(gt1_grp) else 0.0,
+                "p_calibrated_rata2_pct": float(gt1_grp["p_calibrated"].mean()) * 100.0 if len(gt1_grp) else 0.0,
+                "catatan": "Peminjam dengan >=2 pinjaman di S3 memiliki default 12m aktual lebih rendah (15,98%) dibanding 1 pinjaman (20,51%)",
+            }
+        )
+        s3_conc_rows.append(
+            {
+                "jumlah_pinjaman_s3_per_peminjam": "TOTAL S3",
+                "jumlah_peminjam": tot_s3_borrowers,
+                "persen_peminjam_s3": 100.0,
+                "jumlah_pinjaman_s3": tot_s3_loans,
+                "persen_pinjaman_s3": 100.0,
+                "n_default_12m_aktual": int(s3_pd["d12_int"].sum()),
+                "default_rate_12m_aktual_pct": float(s3_pd["d12_int"].mean()) * 100.0,
+                "p_calibrated_rata2_pct": float(s3_pd["p_calibrated"].mean()) * 100.0,
+                "catatan": "Total 5.000 pinjaman S3 pada 4.242 peminjam unik",
+            }
+        )
+    df_s3_conc = pd.DataFrame(s3_conc_rows)
+    return df_sparql, df_dist, df_s3_conc, elapsed
 
 
 def run_q6(g: Graph, df_prep: pd.DataFrame) -> tuple[pd.DataFrame, float]:
@@ -735,32 +1192,77 @@ def build_insight_action_table(
     q2_df: pd.DataFrame,
     q3_df: pd.DataFrame,
     q4_df: pd.DataFrame,
+    q4_summary_df: pd.DataFrame,
     q5_dist_df: pd.DataFrame,
+    q5_s3_conc_df: pd.DataFrame,
     q6_df: pd.DataFrame,
     df_prep: pd.DataFrame,
 ) -> pd.DataFrame:
     """Construct `reports/tables/07_insight_action.csv` linking Tahap 2-5 findings and new relational findings."""
+    # 1. Read and assert population statistics directly from Tahap 3 tables
+    seg_path = TABLES_DIR / "03_default_rate_horizon_by_segment.csv"
+    rat_path = TABLES_DIR / "03_rating_vs_observed_12m.csv"
+    assert seg_path.exists(), f"Missing {seg_path}"
+    assert rat_path.exists(), f"Missing {rat_path}"
+
+    seg_df = pd.read_csv(seg_path)
+    c_pop = seg_df[(seg_df["variabel"] == "Country") & (seg_df["horizon"] == "12m")].set_index("segmen")
+    assert set(c_pop.index) == {"EE", "FI", "ES", "SK"}
+    tot_pop_n = int(c_pop["n"].sum())
+    tot_pop_def = int(c_pop["n_default"].sum())
+    pop_overall_rate_pct = tot_pop_def / tot_pop_n * 100.0
+    assert tot_pop_n == 148_369, f"Expected 148,369 12m observed loans in Tahap 3, got {tot_pop_n}"
+    assert np.isclose(pop_overall_rate_pct, 29.060653, atol=1e-3)
+    for c_key in ["EE", "FI", "ES", "SK"]:
+        assert np.isclose(
+            c_pop.loc[c_key, "default_rate"],
+            c_pop.loc[c_key, "n_default"] / c_pop.loc[c_key, "n"],
+            atol=1e-9,
+        )
+
+    ee_pop_pct = float(c_pop.loc["EE", "default_rate"]) * 100.0
+    fi_pop_pct = float(c_pop.loc["FI", "default_rate"]) * 100.0
+    es_pop_pct = float(c_pop.loc["ES", "default_rate"]) * 100.0
+    sk_pop_pct = float(c_pop.loc["SK", "default_rate"]) * 100.0
+    assert ee_pop_pct < fi_pop_pct < es_pop_pct < sk_pop_pct
+
+    rat_df = pd.read_csv(rat_path).set_index("Rating")
+    rating_order = ["AA", "A", "B", "C", "D", "E", "F", "HR"]
+    assert int(rat_df["n"].sum()) == 148_369
+    rat_rates = [float(rat_df.loc[r, "observed_default_rate_12m"]) * 100.0 for r in rating_order]
+    assert all(rat_rates[i] < rat_rates[i + 1] for i in range(len(rat_rates) - 1)), "Rating 12m default rate must be strictly monotonic"
+    unrated_pop_pct = float(rat_df.loc["Tidak tersedia", "observed_default_rate_12m"]) * 100.0
+    unrated_pop_n = int(rat_df.loc["Tidak tersedia", "n"])
+
     # Q2 country default rates on sample
     q2_country = (
         q2_df.groupby("country", observed=True)
         .agg(n_obs=("n_teramati_12m", "sum"), n_def=("n_default_12m", "sum"))
         .assign(rate_pct=lambda d: d["n_def"] / d["n_obs"] * 100.0)
     )
+    assert (
+        q2_country.loc["EE", "rate_pct"]
+        < q2_country.loc["FI", "rate_pct"]
+        < q2_country.loc["ES", "rate_pct"]
+    )
     q2_str = ", ".join(
-        f"{c}={row['rate_pct']:.2f}% (n={int(row['n_obs']):,})"
+        f"{c}={_fmt_pct_id(row['rate_pct'])} (n={int(row['n_obs']):,})"
         for c, row in q2_country.iterrows()
     )
 
-    # Q1 risk tier average p_calibrated on sample
+    # Q1 risk tier average p_calibrated on sample (including Tidak tersedia)
     q1_tier = (
         df_prep.groupby("risk_tier", observed=True)
         .agg(n=("LoanNumber", "count"), mean_p=("p_calibrated", "mean"))
     )
+    n_unrated_samp = int(q1_tier.loc["TingkatTidakTersedia", "n"]) if "TingkatTidakTersedia" in q1_tier.index else 0
+    p_unrated_samp = float(q1_tier.loc["TingkatTidakTersedia", "mean_p"]) * 100.0 if "TingkatTidakTersedia" in q1_tier.index else 0.0
     q1_str = (
         f"Rata-rata p_calibrated sampel menurut tingkat risiko SKOS: "
-        f"TingkatRendah={q1_tier.loc['TingkatRendah', 'mean_p']*100:.2f}% (n={int(q1_tier.loc['TingkatRendah', 'n']):,}), "
-        f"TingkatMenengah={q1_tier.loc['TingkatMenengah', 'mean_p']*100:.2f}% (n={int(q1_tier.loc['TingkatMenengah', 'n']):,}), "
-        f"TingkatTinggi={q1_tier.loc['TingkatTinggi', 'mean_p']*100:.2f}% (n={int(q1_tier.loc['TingkatTinggi', 'n']):,}); "
+        f"TingkatRendah={_fmt_pct_id(q1_tier.loc['TingkatRendah', 'mean_p']*100)} (n={int(q1_tier.loc['TingkatRendah', 'n']):,}), "
+        f"TingkatMenengah={_fmt_pct_id(q1_tier.loc['TingkatMenengah', 'mean_p']*100)} (n={int(q1_tier.loc['TingkatMenengah', 'n']):,}), "
+        f"TingkatTinggi={_fmt_pct_id(q1_tier.loc['TingkatTinggi', 'mean_p']*100)} (n={int(q1_tier.loc['TingkatTinggi', 'n']):,}), "
+        f"Tidak tersedia={_fmt_pct_id(p_unrated_samp)} (n={n_unrated_samp:,} di EE); "
         f"ditemukan {len(q3_df)} pinjaman TingkatRendah (AA/A/B) yang masuk PitaRisikoTinggi (p >= 0,35) di Q3."
     )
 
@@ -772,38 +1274,69 @@ def build_insight_action_table(
     def12_s3 = q6_df["n_default_12m"].sum() / tot_s3 * 100.0
     p_s3 = (q6_df["n_pinjaman"] * q6_df["p_calibrated_rata2"]).sum() / tot_s3 * 100.0
     q6_str = (
-        f"n={tot_s3:,} pinjaman S3: EE {c_s3.get('EE', 0.0):.2f}%, ES {c_s3.get('ES', 0.0):.2f}%, "
-        f"FI {c_s3.get('FI', 0.0):.2f}%; F+HR {fhr_s3:.2f}%; Tenor 60 bln {t60_s3:.2f}%; "
-        f"rata-rata p_calibrated {p_s3:.2f}%; realisasi default 12m aktual {def12_s3:.2f}%."
+        f"n={tot_s3:,} pinjaman S3: EE {_fmt_pct_id(c_s3.get('EE', 0.0))}, ES {_fmt_pct_id(c_s3.get('ES', 0.0))}, "
+        f"FI {_fmt_pct_id(c_s3.get('FI', 0.0))}; F+HR {_fmt_pct_id(fhr_s3)}; Tenor 60 bln {_fmt_pct_id(t60_s3)}; "
+        f"rata-rata p_calibrated {_fmt_pct_id(p_s3)}; realisasi default 12m aktual {_fmt_pct_id(def12_s3)}."
     )
 
-    # Q4 repeat after default
-    n_q4_pairs = len(q4_df)
-    n_q4_borrowers = int(q4_df["borrower_uri_id"].nunique()) if not q4_df.empty else 0
-    q4_next_def = int((q4_df["next_outcome_code"] == "Default").sum()) if not q4_df.empty else 0
-    q4_next_def_pct = (q4_next_def / max(1, n_q4_pairs) * 100.0) if n_q4_pairs > 0 else 0.0
-    q4_in_s3 = int(df_prep[df_prep["LoanNumber"].isin(q4_df["next_loan_number"])]["in_s3"].sum()) if not q4_df.empty else 0
+    # Q4 variants (a) and (b), base rates, and S3 prior default before LoanDate
+    q4_map = q4_summary_df.set_index("kode_varian")
+    va_row = q4_map.loc["a_setelah_default"]
+    vb_row = q4_map.loc["b_tumpang_tindih"]
+    b1_all_row = q4_map.loc["pembanding_lanjut_prev_non_default_semua"]
+    b1_res_row = q4_map.loc["pembanding_lanjut_prev_non_default_selesai"]
+    b2_row = q4_map.loc["pembanding_semua_pinjaman_selesai_graf"]
+    s3_dir_row = q4_map.loc["s3_pendahulu_langsung_default_sebelum_loandate"]
+    s3_rest_dir_row = q4_map.loc["s3_sisa_tanpa_pendahulu_langsung_default_sebelum_loandate"]
+    s3_any_row = q4_map.loc["s3_pendahulu_rantai_default_sebelum_loandate"]
+    s3_rest_any_row = q4_map.loc["s3_sisa_tanpa_pendahulu_rantai_default_sebelum_loandate"]
 
-    # Q5 repeat chains
+    # Q5 repeat chains and S3 direct borrower concentration
     max_chain = int(q5_dist_df["panjang_rantai_peminjam"].max())
     n_repeat_b = int(q5_dist_df[q5_dist_df["panjang_rantai_peminjam"] >= 2]["jumlah_peminjam_sparql"].sum())
     n_chain_ge5 = int(q5_dist_df[q5_dist_df["panjang_rantai_peminjam"] >= 5]["jumlah_peminjam_sparql"].sum())
 
+    s3_conc_map = q5_s3_conc_df.set_index("jumlah_pinjaman_s3_per_peminjam")
+    s3_k1 = s3_conc_map.loc["1"]
+    s3_k2 = s3_conc_map.loc["2"]
+    s3_k3 = s3_conc_map.loc["3"]
+    s3_kge2 = s3_conc_map.loc[">=2 (Subtotal multi-pinjaman di S3)"]
+
+    rat_pop_parts = ", ".join(
+        f"{r} {_fmt_pct_id(float(rat_df.loc[r, 'observed_default_rate_12m']) * 100.0)}"
+        for r in rating_order
+    )
+
     rows = [
         {
             "temuan_sebelumnya": "Perbedaan tingkat gagal bayar antar negara dan pergeseran komposisi hasil menurut era pencatatan",
-            "sumber_tahap": "Tahap 2 (EDA) & Tahap 3 (Diagnostic: H1, H7)",
+            "sumber_tahap": "Tahap 2 (EDA) & Tahap 3 (Diagnostic: H1, H7 — 03_default_rate_horizon_by_segment.csv)",
             "query_sparql": "Q2 (07_q2_default12m_country_era.csv) & Q8 (07_q8_outcome_era_country.csv)",
-            "hasil_graf": f"Default rate 12 bulan pada sampel graf (n={int(q2_df['n_teramati_12m'].sum()):,} teramati): {q2_str}. Urutan risiko negara (EE < FI < ES < SK) konsisten dengan populasi.",
-            "hasil_populasi": "Populasi default_12m teramati (Tahap 2-3, n=148.369): EE 15,28%, FI 24,25%, ES 40,26%, SK 47,26% (selisih ES-EE = +24,98 poin persentase).",
-            "catatan": "ANGKA SAMPEL: Proporsi sampel dipengaruhi masuknya seluruh 5.000 pinjaman S3 (2021-2022) dan perluasan peminjam; gunakan angka Tahap 2-3 untuk estimasi populasi.",
+            "hasil_graf": (
+                f"Default rate 12 bulan pada sampel graf (n={int(q2_df['n_teramati_12m'].sum()):,} teramati): {q2_str}. "
+                f"Urutan risiko EE < FI < ES konsisten dengan populasi, sedangkan SK tidak (n sampel kecil, n=42)."
+            ),
+            "hasil_populasi": (
+                f"Populasi default rate 12 bulan teramati (03_default_rate_horizon_by_segment.csv, n={tot_pop_n:,}, "
+                f"rata-rata populasi {_fmt_pct_id(pop_overall_rate_pct)}): "
+                f"EE {_fmt_pct_id(ee_pop_pct)} (n={int(c_pop.loc['EE', 'n']):,}), "
+                f"FI {_fmt_pct_id(fi_pop_pct)} (n={int(c_pop.loc['FI', 'n']):,}), "
+                f"ES {_fmt_pct_id(es_pop_pct)} (n={int(c_pop.loc['ES', 'n']):,}), "
+                f"SK {_fmt_pct_id(sk_pop_pct)} (n={int(c_pop.loc['SK', 'n']):,})."
+            ),
+            "catatan": "ANGKA SAMPEL: Proporsi sampel dipengaruhi masuknya seluruh 5.000 pinjaman S3 (2021-2022) dan perluasan peminjam; gunakan angka Tahap 3 untuk estimasi populasi.",
         },
         {
             "temuan_sebelumnya": "Urutan tingkat gagal bayar monoton terhadap kelas rating (AA s.d. HR) namun terdapat deviasi prediktif tingkat individu",
-            "sumber_tahap": "Tahap 3 (Diagnostic: H2) & Tahap 4 (Predictive: LGBM-A)",
+            "sumber_tahap": "Tahap 3 (Diagnostic: H2 — 03_rating_vs_observed_12m.csv) & Tahap 4 (Predictive: LGBM-A)",
             "query_sparql": "Q1 (07_q1_rating_tier_country.csv) & Q3 (07_q3_rating_vs_model_mismatch.csv)",
             "hasil_graf": q1_str,
-            "hasil_populasi": "Populasi Tahap 3 menunjukkan default rate 12m naik monoton dari AA (3,82%) hingga HR (52,70%); model LGBM-A (ROC-AUC uji 0,7152) menangkap sinyal arus kas dan beban kewajiban di luar huruf rating.",
+            "hasil_populasi": (
+                f"Populasi default rate 12 bulan teramati menurut Rating (03_rating_vs_observed_12m.csv, n={tot_pop_n:,}, "
+                f"rata-rata {_fmt_pct_id(pop_overall_rate_pct)}) naik monoton: {rat_pop_parts} "
+                f"(Tidak tersedia: {_fmt_pct_id(unrated_pop_pct)}, n={unrated_pop_n:,}); "
+                f"model LGBM-A (ROC-AUC uji 0,7152) membedakan risiko individu di dalam kelas rating yang sama."
+            ),
             "catatan": "ANGKA SAMPEL: Menunjukkan manfaat menggabungkan taksonomi SKOS (bo:RiskTier) dengan skor model (bo:inRiskBand) untuk menyaring anomali rating rendah berisiko model tinggi.",
         },
         {
@@ -815,29 +1348,53 @@ def build_insight_action_table(
             "catatan": "ANGKA LENGKAP (IDENTIK 100%): Seluruh 5.000 pinjaman S3 dimasukkan penuh ke dalam graf sehingga agregasi SPARQL Q6 mereproduksi angka Tahap 5 secara eksak.",
         },
         {
-            "temuan_sebelumnya": "Temuan relasional baru (belum ada di Tahap 1-5): peminjam yang memperoleh pinjaman baru setelah pinjaman sebelumnya berstatus akhir Default",
-            "sumber_tahap": "Tahap 6 (Semantic Analytics — relasi bo:precededBy)",
-            "query_sparql": "Q4 (07_q4_repeat_borrower_after_default.csv)",
+            "temuan_sebelumnya": "Temuan relasional baru (belum ada di Tahap 1-5): pemisahan pinjaman ulang setelah default (Varian a) vs pinjaman tumpang-tindih (Varian b)",
+            "sumber_tahap": "Tahap 6 (Semantic Analytics — relasi bo:precededBy & bo:defaultDate)",
+            "query_sparql": "Q4 (07_q4_repeat_borrower_after_default.csv & 07_q4_variants_summary.csv)",
             "hasil_graf": (
-                f"Tercatat {n_q4_pairs:,} pasangan transisi pinjaman (milik {n_q4_borrowers:,} peminjam unik di graf) "
-                f"di mana pinjaman baru memiliki pendahulu langsung berstatus akhir bo:Default; "
-                f"{q4_next_def:,} ({q4_next_def_pct:.2f}%) dari pinjaman lanjutan tersebut juga berakhir Default, "
-                f"dan {q4_in_s3:,} di antaranya terpilih dalam portofolio S3."
+                f"Varian (a) [LoanDate > bo:defaultDate pendahulu langsung, pinjaman ulang setelah default]: "
+                f"{int(va_row['jumlah_pasangan_atau_pinjaman']):,} pasangan ({int(va_row['jumlah_peminjam']):,} peminjam), "
+                f"{_fmt_pct_id(float(va_row['persen_berakhir_default']))} ({int(va_row['n_berakhir_default'])}/{int(va_row['jumlah_pasangan_atau_pinjaman'])}) berakhir Default. "
+                f"Varian (b) [LoanDate <= bo:defaultDate pendahulu, tumpang-tindih]: "
+                f"{int(vb_row['jumlah_pasangan_atau_pinjaman']):,} pasangan ({int(vb_row['jumlah_peminjam']):,} peminjam), "
+                f"{_fmt_pct_id(float(vb_row['persen_berakhir_default']))} ({int(vb_row['n_berakhir_default']):,}/{int(vb_row['jumlah_pasangan_atau_pinjaman']):,}) berakhir Default "
+                f"(ditambah 3 pasangan pendahulu Default tanpa DefaultDate). "
+                f"Pembanding tingkat dasar: pinjaman lanjutan dengan pendahulu TIDAK Default = {_fmt_pct_id(float(b1_all_row['persen_berakhir_default']))} "
+                f"({int(b1_all_row['n_berakhir_default'])}/{int(b1_all_row['jumlah_pasangan_atau_pinjaman']):,} semua; "
+                f"{_fmt_pct_id(float(b1_res_row['persen_berakhir_default']))} atau {int(b1_res_row['n_berakhir_default'])}/{int(b1_res_row['jumlah_pasangan_atau_pinjaman']):,} pada yang selesai), "
+                f"dan semua pinjaman selesai di graf = {_fmt_pct_id(float(b2_row['persen_berakhir_default']))} "
+                f"({int(b2_row['n_berakhir_default']):,}/{int(b2_row['jumlah_pasangan_atau_pinjaman']):,})."
             ),
-            "hasil_populasi": "Tidak dihitung pada model tabular per-baris Tahap 1-5 karena relasi antar-pinjaman milik peminjam yang sama tidak direpresentasikan sebagai graf urutan.",
-            "catatan": "WAWASAN RELASIONAL SAMPEL (PERTANYAAN TINDAK LANJUT): Karena bo:Default mencerminkan status akhir pinjaman (sebagian pinjaman lanjutan dicairkan ketika pinjaman lama masih berjalan sebelum akhirnya gagal bayar bersama-sama), apakah kebijakan seleksi investor perlu membatasi pinjaman beruntun dari peminjam yang memiliki eksposur pinjaman sebelumnya?",
+            "hasil_populasi": (
+                f"Pada portofolio S3 (n=5.000): terdapat {int(s3_dir_row['n_di_s3'])} pinjaman S3 ({int(s3_dir_row['jumlah_peminjam'])} peminjam) "
+                f"yang pendahulu langsungnya default SEBELUM LoanDate-nya, dengan default 12m aktual {_fmt_pct_id(float(s3_dir_row['persen_default_12m_di_s3']))} "
+                f"({int(s3_dir_row['n_default_12m_di_s3'])}/{int(s3_dir_row['n_di_s3'])}) vs sisa S3 {_fmt_pct_id(float(s3_rest_dir_row['persen_default_12m_di_s3']))} "
+                f"({int(s3_rest_dir_row['n_default_12m_di_s3']):,}/{int(s3_rest_dir_row['n_di_s3']):,}); "
+                f"bila dihitung terhadap pendahulu MANA PUN di rantai (bo:precededBy+), terdapat {int(s3_any_row['n_di_s3'])} pinjaman S3 "
+                f"dengan default 12m aktual {_fmt_pct_id(float(s3_any_row['persen_default_12m_di_s3']))} ({int(s3_any_row['n_default_12m_di_s3'])}/{int(s3_any_row['n_di_s3'])}) "
+                f"vs sisa S3 {_fmt_pct_id(float(s3_rest_any_row['persen_default_12m_di_s3']))} ({int(s3_rest_any_row['n_default_12m_di_s3']):,}/{int(s3_rest_any_row['n_di_s3']):,})."
+            ),
+            "catatan": "WAWASAN RELASIONAL: Mayoritas pasangan Q4 (1.699 dari 1.792) adalah pinjaman tumpang-tindih (Varian b) yang gagal bayar bersamaan; pinjaman ulang sejati setelah default pendahulu langsung (Varian a, n=90, 67 di S3) memiliki default 12m aktual 22,39% (+3,19 poin di atas sisa S3).",
         },
         {
-            "temuan_sebelumnya": "Temuan relasional baru (belum ada di Tahap 1-5): struktur panjang rantai peminjaman ulang per peminjam",
-            "sumber_tahap": "Tahap 6 (Semantic Analytics — property path bo:precededBy+)",
-            "query_sparql": "Q5 (07_q5_repeat_chain_lengths.csv & 07_q5_chain_distribution.csv)",
+            "temuan_sebelumnya": "Temuan relasional baru (belum ada di Tahap 1-5): struktur panjang rantai peminjaman ulang dan distribusi konsentrasi peminjam di S3",
+            "sumber_tahap": "Tahap 6 (Semantic Analytics — property path bo:precededBy+ & analisis konsentrasi S3)",
+            "query_sparql": "Q5 (07_q5_repeat_chain_lengths.csv, 07_q5_chain_distribution.csv & 07_q5_s3_borrower_concentration.csv)",
             "hasil_graf": (
                 f"Dari {int(df_prep['UserName'].nunique()):,} peminjam di graf, {n_repeat_b:,} peminjam memiliki >= 2 pinjaman "
                 f"(total {len(df_prep) - int(df_prep['UserName'].nunique()):,} pinjaman lanjutan), {n_chain_ge5:,} peminjam memiliki rantai >= 5 pinjaman, "
-                f"dan panjang rantai maksimum tercatat {max_chain} pinjaman berurutan."
+                f"dan panjang rantai maksimum tercatat {max_chain} pinjaman berurutan "
+                f"(CATATAN: panjang rantai dan % peminjam berulang di graf adalah artefak desain sampel akibat perluasan riwayat parsial, bukan statistik populasi)."
             ),
-            "hasil_populasi": "Tahap 5 hanya membatasi bobot negara, F+HR, dan tenor 60 bulan tanpa batas konsentrasi jumlah pinjaman per peminjam (UserName).",
-            "catatan": "WAWASAN RELASIONAL SAMPEL (TINDAKAN): Menyarankan penambahan batasan konsentrasi per peminjam (mis. maksimal 1-2 pinjaman aktif per bo:Borrower) pada optimasi portofolio.",
+            "hasil_populasi": (
+                f"Distribusi langsung pada portofolio S3 (5.000 pinjaman pada 4.242 peminjam unik): "
+                f"1 pinjaman/peminjam = {int(s3_k1['jumlah_peminjam']):,} peminjam ({int(s3_k1['jumlah_pinjaman_s3']):,} pinjaman, default 12m aktual {_fmt_pct_id(float(s3_k1['default_rate_12m_aktual_pct']))}); "
+                f"2 pinjaman/peminjam = {int(s3_k2['jumlah_peminjam']):,} peminjam ({int(s3_k2['jumlah_pinjaman_s3']):,} pinjaman, default 12m aktual {_fmt_pct_id(float(s3_k2['default_rate_12m_aktual_pct']))}); "
+                f"3 pinjaman/peminjam = {int(s3_k3['jumlah_peminjam']):,} peminjam ({int(s3_k3['jumlah_pinjaman_s3']):,} pinjaman, default 12m aktual {_fmt_pct_id(float(s3_k3['default_rate_12m_aktual_pct']))}); "
+                f"4-7 pinjaman/peminjam = 10 peminjam (46 pinjaman, 2 default pada k=7); "
+                f"subtotal >=2 pinjaman/peminjam di S3 = {int(s3_kge2['jumlah_peminjam']):,} peminjam ({int(s3_kge2['jumlah_pinjaman_s3']):,} pinjaman, default 12m aktual {_fmt_pct_id(float(s3_kge2['default_rate_12m_aktual_pct']))})."
+            ),
+            "catatan": "HIPOTESIS TINDAK LANJUT: Pembatasan jumlah pinjaman per peminjam diperlakukan sebagai hipotesis diversifikasi eksposur idiosinkratik (di S3, peminjam dengan >=2 pinjaman justru memiliki default 12m aktual 15,98% vs 20,51% pada peminjam 1 pinjaman).",
         },
     ]
     return pd.DataFrame(rows)
@@ -871,9 +1428,9 @@ def run_all_queries_and_inference(
     print(f"  Q2 done in {t_q2:.3f}s", flush=True)
     q3_df, t_q3 = run_q3(g, df_prep)
     print(f"  Q3 done in {t_q3:.3f}s", flush=True)
-    q4_df, t_q4 = run_q4(g, df_prep)
+    q4_df, q4_summary_df, t_q4 = run_q4(g, df_prep)
     print(f"  Q4 done in {t_q4:.3f}s", flush=True)
-    q5_df, q5_dist_df, t_q5 = run_q5(g, df_prep)
+    q5_df, q5_dist_df, q5_s3_conc_df, t_q5 = run_q5(g, df_prep)
     print(f"  Q5 done in {t_q5:.3f}s", flush=True)
     q6_df, t_q6 = run_q6(g, df_prep)
     print(f"  Q6 done in {t_q6:.3f}s", flush=True)
@@ -908,15 +1465,19 @@ def run_all_queries_and_inference(
     )
     assert (timings_df["waktu_eksekusi_detik"] < 60.0).all(), "Query exceeded 60s limit!"
 
-    insight_df = build_insight_action_table(q1_df, q2_df, q3_df, q4_df, q5_dist_df, q6_df, df_prep)
+    insight_df = build_insight_action_table(
+        q1_df, q2_df, q3_df, q4_df, q4_summary_df, q5_dist_df, q5_s3_conc_df, q6_df, df_prep
+    )
 
     if save_outputs:
         q1_df.to_csv(TABLES_DIR / "07_q1_rating_tier_country.csv", index=False)
         q2_df.to_csv(TABLES_DIR / "07_q2_default12m_country_era.csv", index=False)
         q3_df.to_csv(TABLES_DIR / "07_q3_rating_vs_model_mismatch.csv", index=False)
         q4_df.to_csv(TABLES_DIR / "07_q4_repeat_borrower_after_default.csv", index=False)
+        q4_summary_df.to_csv(TABLES_DIR / "07_q4_variants_summary.csv", index=False)
         q5_df.to_csv(TABLES_DIR / "07_q5_repeat_chain_lengths.csv", index=False)
         q5_dist_df.to_csv(TABLES_DIR / "07_q5_chain_distribution.csv", index=False)
+        q5_s3_conc_df.to_csv(TABLES_DIR / "07_q5_s3_borrower_concentration.csv", index=False)
         q6_df.to_csv(TABLES_DIR / "07_q6_s3_composition_sparql.csv", index=False)
         q7_df.to_csv(TABLES_DIR / "07_q7_high_risk_inferred.csv", index=False)
         q8_df.to_csv(TABLES_DIR / "07_q8_outcome_era_country.csv", index=False)
@@ -929,8 +1490,10 @@ def run_all_queries_and_inference(
         "q2": q2_df,
         "q3": q3_df,
         "q4": q4_df,
+        "q4_summary": q4_summary_df,
         "q5": q5_df,
         "q5_dist": q5_dist_df,
+        "q5_s3_conc": q5_s3_conc_df,
         "q6": q6_df,
         "q7": q7_df,
         "q8": q8_df,
@@ -947,6 +1510,8 @@ def main() -> None:
     res = run_all_queries_and_inference(save_outputs=True)
     print("\n--- Query Timings & Verification ---")
     print(res["timings"][["query_id", "jumlah_baris_hasil", "waktu_eksekusi_detik", "verifikasi_pandas"]].to_string(index=False))
+    print("\n--- Q4 Variants Summary ---")
+    print(res["q4_summary"][["kode_varian", "jumlah_pasangan_atau_pinjaman", "jumlah_peminjam", "n_berakhir_default", "persen_berakhir_default", "n_di_s3", "persen_default_12m_di_s3"]].to_string(index=False))
     print("\n--- OWL-RL Inference Summary ---")
     print(res["inference_summary"].to_string(index=False))
     print(f"\n[Done] Total execution time: {time.perf_counter() - t0:.2f}s")

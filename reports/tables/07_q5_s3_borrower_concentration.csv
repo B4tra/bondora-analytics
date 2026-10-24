@@ -1,0 +1,10 @@
+jumlah_pinjaman_s3_per_peminjam,jumlah_peminjam,persen_peminjam_s3,jumlah_pinjaman_s3,persen_pinjaman_s3,n_default_12m_aktual,default_rate_12m_aktual_pct,p_calibrated_rata2_pct,catatan
+1,3598,84.81848184818482,3598,71.96000000000001,738,20.511395219566424,18.498038382434682,Statistik lengkap portofolio S3 (n=5.000 pinjaman)
+2,546,12.871287128712872,1092,21.84,196,17.94871794871795,16.685762454212455,Statistik lengkap portofolio S3 (n=5.000 pinjaman)
+3,88,2.0744931636020745,264,5.28,26,9.848484848484848,15.643654924242426,Statistik lengkap portofolio S3 (n=5.000 pinjaman)
+4,7,0.16501650165016502,28,0.5599999999999999,0,0.0,10.800582142857142,Statistik lengkap portofolio S3 (n=5.000 pinjaman)
+5,1,0.023573785950023574,5,0.1,0,0.0,14.36144,Statistik lengkap portofolio S3 (n=5.000 pinjaman)
+6,1,0.023573785950023574,6,0.12,0,0.0,2.67865,Statistik lengkap portofolio S3 (n=5.000 pinjaman)
+7,1,0.023573785950023574,7,0.13999999999999999,2,28.57142857142857,33.324000000000005,Statistik lengkap portofolio S3 (n=5.000 pinjaman)
+>=2 (Subtotal multi-pinjaman di S3),644,15.181518151815181,1402,28.04,224,15.977175463623395,16.38683373751783,"Peminjam dengan >=2 pinjaman di S3 memiliki default 12m aktual lebih rendah (15,98%) dibanding 1 pinjaman (20,51%)"
+TOTAL S3,4242,100.0,5000,100.0,962,19.24,17.9060566,Total 5.000 pinjaman S3 pada 4.242 peminjam unik

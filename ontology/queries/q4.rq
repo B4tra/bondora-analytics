@@ -1,20 +1,25 @@
 # Pertanyaan Bisnis Q4:
-# Peminjam dan pasangan pinjaman mana saja di dalam graf yang menerima pinjaman baru
-# setelah pinjaman sebelumnya langsung tercatat gagal bayar (bo:hasOutcome bo:Default)?
+# Pasangan pinjaman berurutan (?prevLoan -> ?nextLoan) di mana pendahulu langsung
+# berakhir gagal bayar (bo:hasOutcome bo:Default) dan memiliki tanggal default (bo:defaultDate),
+# dipisahkan menjadi dua varian:
+#   (a) a_setelah_default: ?nextDate > ?prevDefaultDate (pinjaman ulang setelah default pendahulu)
+#   (b) b_tumpang_tindih:  ?nextDate <= ?prevDefaultDate (pinjaman lanjutan tumpang-tindih sebelum/saat default pendahulu)
 
 PREFIX bo: <http://example.org/bondora#>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 
-SELECT ?borrower ?country ?prevLoan ?prevDate ?nextLoan ?nextDate ?nextOutcome ?nextP
+SELECT ?varian ?borrower ?country ?prevLoan ?prevDate ?prevDefaultDate ?nextLoan ?nextDate ?nextOutcome ?nextP
 WHERE {
     ?prevLoan rdf:type bo:Loan ;
               bo:hasOutcome bo:Default ;
-              bo:loanDate ?prevDate .
+              bo:loanDate ?prevDate ;
+              bo:defaultDate ?prevDefaultDate .
     ?nextLoan bo:precededBy ?prevLoan ;
               bo:hasBorrower ?borrower ;
               bo:originatedIn ?country ;
               bo:loanDate ?nextDate ;
               bo:hasOutcome ?nextOutcome ;
               bo:predictedDefaultProb12m ?nextP .
+    BIND(IF(?nextDate > ?prevDefaultDate, "a_setelah_default", "b_tumpang_tindih") AS ?varian)
 }
-ORDER BY ?borrower ?nextDate ?nextLoan
+ORDER BY ?varian ?borrower ?nextDate ?nextLoan
