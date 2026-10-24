@@ -1,0 +1,24 @@
+# Pertanyaan Bisnis Q3:
+# Pinjaman mana saja yang memperoleh rating bertingkat risiko rendah (bo:TingkatRendah: AA, A, B)
+# menurut taksonomi rating Bondora, tetapi justru diklasifikasikan ke dalam pita risiko tinggi
+# (bo:PitaRisikoTinggi, p_calibrated >= 0,35) oleh model prediktif LGBM-A (ketidaksepakatan rating vs model)?
+
+PREFIX bo: <http://example.org/bondora#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?loan ?country ?rating ?era ?outcome ?amount ?interest ?p ?d12
+WHERE {
+    ?rating skos:broader bo:TingkatRendah .
+    ?loan bo:inRiskBand bo:PitaRisikoTinggi ;
+          bo:ratedAs ?rating ;
+          rdf:type bo:Loan ;
+          bo:originatedIn ?country ;
+          bo:inEra ?era ;
+          bo:hasOutcome ?outcome ;
+          bo:amount ?amount ;
+          bo:interestPct ?interest ;
+          bo:predictedDefaultProb12m ?p .
+    OPTIONAL { ?loan bo:defaultWithin12m ?d12 . }
+}
+ORDER BY DESC(?p) ?loan

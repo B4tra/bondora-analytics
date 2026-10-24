@@ -1,0 +1,16 @@
+# Pertanyaan Bisnis Q5:
+# Berapa jumlah pendahulu (ancestor) pada rantai peminjaman ulang (melalui property path bo:precededBy+)
+# untuk setiap pinjaman peminjaman ulang di dalam graf, sehingga dapat dihitung panjang rantai
+# peminjaman ulang (1 + jumlah pendahulu) terpanjang beserta distribusinya per peminjam?
+
+PREFIX bo: <http://example.org/bondora#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?loan ?borrower ?country (COUNT(DISTINCT ?ancestor) AS ?n_pendahulu)
+WHERE {
+    ?loan bo:precededBy+ ?ancestor ;
+          bo:hasBorrower ?borrower ;
+          bo:originatedIn ?country .
+}
+GROUP BY ?loan ?borrower ?country
+ORDER BY DESC(?n_pendahulu) ?borrower ?loan

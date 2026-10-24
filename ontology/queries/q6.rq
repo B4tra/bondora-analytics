@@ -1,0 +1,26 @@
+# Pertanyaan Bisnis Q6:
+# Bagaimana komposisi portofolio rekomendasi S3 (bo:selectedBy bo:StrategiS3) menurut negara,
+# tingkat risiko rating (SKOS), kelas rating, dan pita tenor, beserta rata-rata p_calibrated
+# dan tingkat gagal bayar aktual dalam 12 bulan (bo:defaultWithin12m)?
+
+PREFIX bo: <http://example.org/bondora#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?country ?riskTier ?rating ?tenorBand
+       (COUNT(?loan) AS ?n_pinjaman)
+       (AVG(?p) AS ?p_calibrated_rata2)
+       (SUM(IF(?d12 = true, 1, 0)) AS ?n_default_12m)
+       (AVG(IF(?d12 = true, 1.0, 0.0)) AS ?default_rate_12m)
+WHERE {
+    ?loan bo:selectedBy bo:StrategiS3 ;
+          rdf:type bo:Loan ;
+          bo:originatedIn ?country ;
+          bo:ratedAs ?rating ;
+          bo:hasTenorBand ?tenorBand ;
+          bo:predictedDefaultProb12m ?p ;
+          bo:defaultWithin12m ?d12 .
+    ?rating skos:broader ?riskTier .
+}
+GROUP BY ?country ?riskTier ?rating ?tenorBand
+ORDER BY ?country ?riskTier ?rating ?tenorBand

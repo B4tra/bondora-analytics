@@ -1,0 +1,22 @@
+# Pertanyaan Bisnis Q1:
+# Berapa jumlah pinjaman, rata-rata probabilitas gagal bayar 12 bulan terkalibrasi (p_calibrated),
+# dan rata-rata suku bunga tahunan per tingkat risiko rating (SKOS skos:broader) dan negara asal?
+
+PREFIX bo: <http://example.org/bondora#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+
+SELECT ?country ?riskTier
+       (COUNT(?loan) AS ?n_pinjaman)
+       (AVG(?p) AS ?p_calibrated_rata2)
+       (AVG(?interest) AS ?interest_rata2_pct)
+WHERE {
+    ?loan rdf:type bo:Loan ;
+          bo:originatedIn ?country ;
+          bo:ratedAs ?rating ;
+          bo:predictedDefaultProb12m ?p ;
+          bo:interestPct ?interest .
+    ?rating skos:broader ?riskTier .
+}
+GROUP BY ?country ?riskTier
+ORDER BY ?country ?riskTier

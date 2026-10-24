@@ -1,0 +1,20 @@
+# Pertanyaan Bisnis Q4:
+# Peminjam dan pasangan pinjaman mana saja di dalam graf yang menerima pinjaman baru
+# setelah pinjaman sebelumnya langsung tercatat gagal bayar (bo:hasOutcome bo:Default)?
+
+PREFIX bo: <http://example.org/bondora#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+SELECT ?borrower ?country ?prevLoan ?prevDate ?nextLoan ?nextDate ?nextOutcome ?nextP
+WHERE {
+    ?prevLoan rdf:type bo:Loan ;
+              bo:hasOutcome bo:Default ;
+              bo:loanDate ?prevDate .
+    ?nextLoan bo:precededBy ?prevLoan ;
+              bo:hasBorrower ?borrower ;
+              bo:originatedIn ?country ;
+              bo:loanDate ?nextDate ;
+              bo:hasOutcome ?nextOutcome ;
+              bo:predictedDefaultProb12m ?nextP .
+}
+ORDER BY ?borrower ?nextDate ?nextLoan
