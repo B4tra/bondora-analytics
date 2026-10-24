@@ -65,15 +65,9 @@ bo:DefaultedLoan a owl:Class ;
     rdfs:label "Pinjaman Gagal Bayar (Default)"@id ;
     rdfs:comment "Kelas terdefinisi (definisi proyek): pinjaman (bo:Loan) yang memiliki kelompok hasil bo:Default."@id ;
     owl:equivalentClass [
-        a owl:Class ;
-        owl:intersectionOf (
-            bo:Loan
-            [
-                a owl:Restriction ;
-                owl:onProperty bo:hasOutcome ;
-                owl:hasValue bo:Default
-            ]
-        )
+        a owl:Restriction ;
+        owl:onProperty bo:hasOutcome ;
+        owl:hasValue bo:Default
     ] .
 
 bo:CensoredLoan a owl:Class ;
@@ -82,22 +76,16 @@ bo:CensoredLoan a owl:Class ;
     rdfs:comment "Kelas terdefinisi (definisi proyek): pinjaman (bo:Loan) yang belum selesai (berstatus bo:Current atau bo:LateNotDefault pada tanggal laporan)."@id ;
     owl:equivalentClass [
         a owl:Class ;
-        owl:intersectionOf (
-            bo:Loan
+        owl:unionOf (
             [
-                a owl:Class ;
-                owl:unionOf (
-                    [
-                        a owl:Restriction ;
-                        owl:onProperty bo:hasOutcome ;
-                        owl:hasValue bo:Current
-                    ]
-                    [
-                        a owl:Restriction ;
-                        owl:onProperty bo:hasOutcome ;
-                        owl:hasValue bo:LateNotDefault
-                    ]
-                )
+                a owl:Restriction ;
+                owl:onProperty bo:hasOutcome ;
+                owl:hasValue bo:Current
+            ]
+            [
+                a owl:Restriction ;
+                owl:onProperty bo:hasOutcome ;
+                owl:hasValue bo:LateNotDefault
             ]
         )
     ] .
@@ -107,19 +95,13 @@ bo:HighRiskRatedLoan a owl:Class ;
     rdfs:label "Pinjaman Berating Tingkat Tinggi"@id ;
     rdfs:comment "Kelas terdefinisi (definisi proyek): pinjaman (bo:Loan) yang memiliki rating (bo:ratedAs) dengan tingkat risiko SKOS bo:TingkatTinggi (E, F, atau HR)."@id ;
     owl:equivalentClass [
-        a owl:Class ;
-        owl:intersectionOf (
-            bo:Loan
-            [
-                a owl:Restriction ;
-                owl:onProperty bo:ratedAs ;
-                owl:someValuesFrom [
-                    a owl:Restriction ;
-                    owl:onProperty skos:broader ;
-                    owl:hasValue bo:TingkatTinggi
-                ]
-            ]
-        )
+        a owl:Restriction ;
+        owl:onProperty bo:ratedAs ;
+        owl:someValuesFrom [
+            a owl:Restriction ;
+            owl:onProperty skos:broader ;
+            owl:hasValue bo:TingkatTinggi
+        ]
     ] .
 
 # =============================================================================
