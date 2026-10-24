@@ -24,6 +24,8 @@ pulp
 # Semantic
 rdflib
 networkx
+owlrl
+pyvis
 
 # Dashboard
 streamlit
