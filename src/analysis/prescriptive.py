@@ -179,7 +179,7 @@ def wilson_ci(successes: float, n: float, z: float = 1.959964) -> tuple[float, f
     denom = 1.0 + z**2 / n
     centre = (ph + z**2 / (2 * n)) / denom
     half = z * np.sqrt(ph * (1 - ph) / n + z**2 / (4 * n**2)) / denom
-    return (float(centre - half), float(centre + half))
+    return (float(max(0.0, centre - half)), float(min(1.0, centre + half)))
 
 
 # --------------------------------------------------------------------------------------
@@ -883,3 +883,211 @@ def tenor_bin(duration: pd.Series | np.ndarray) -> pd.Categorical:
     bins = [0, 12, 24, 36, 48, 59, 60]
     labels = ["<=12", "13-24", "25-36", "37-48", "49-59", "60"]
     return pd.cut(pd.Series(duration), bins=bins, labels=labels, right=True)
+
+
+def cluster_bootstrap_portfolios(
+    opp: pd.DataFrame,
+    selections: dict[str, np.ndarray],
+    *,
+    ticket: float,
+    borrower_col: str = "UserName",
+    u_real_col: str = "u_expost",
+    default_col: str = "default_12m",
+    ref_strategy: str = "S3",
+    compare_strategies: Sequence[str] = ("S2c", "S4c"),
+    n_boot: int = N_BOOTSTRAP,
+    seed: int = RANDOM_SEED,
+    strategy_results_df: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    """Paired cluster bootstrap over borrowers (``UserName``) for S3 and comparison strategies.
+
+    On each iteration, borrowers are sampled with replacement from the union of unique borrowers across
+    the compared strategies; all loans of a strategy belonging to a sampled borrower are included as many
+    times as that borrower appears in the bootstrap draw. Using the same borrower draw across strategies
+    yields a paired bootstrap for strategy differences (e.g. ``S3 - S2c`` and ``S3 - S4c``).
+    """
+    strat_keys = [ref_strategy, *[s for s in compare_strategies if s != ref_strategy]]
+    for k in strat_keys:
+        if k not in selections or len(selections[k]) == 0:
+            raise ValueError(f"Strategy {k!r} missing or empty in selections.")
+
+    union_borrowers = np.sort(
+        pd.unique(
+            np.concatenate(
+                [opp.iloc[selections[k]][borrower_col].astype(str).to_numpy() for k in strat_keys]
+            )
+        )
+    )
+    m_union = len(union_borrowers)
+    b_to_idx = pd.Series(np.arange(m_union), index=union_borrowers)
+
+    counts_n: dict[str, np.ndarray] = {}
+    profits_eur: dict[str, np.ndarray] = {}
+    invests_eur: dict[str, np.ndarray] = {}
+    defaults_sum: dict[str, np.ndarray] = {}
+    n_unique_b: dict[str, int] = {}
+    point_roi: dict[str, float] = {}
+    point_def: dict[str, float] = {}
+    loan_ci_roi: dict[str, tuple[float, float]] = {}
+    loan_ci_def: dict[str, tuple[float, float]] = {}
+    loan_boot_roi_series: dict[str, np.ndarray] = {}
+
+    res_idx = (
+        strategy_results_df.set_index("opsi")
+        if strategy_results_df is not None and "opsi" in strategy_results_df.columns
+        else None
+    )
+
+    for k in strat_keys:
+        sub = opp.iloc[selections[k]]
+        n_loans = len(sub)
+        u_re = sub[u_real_col].to_numpy(dtype="float64")
+        d_arr = sub[default_col].to_numpy(dtype="float64")
+        b_arr = sub[borrower_col].astype(str).to_numpy()
+
+        n_unique_b[k] = int(pd.unique(b_arr).size)
+        invest_tot = float(n_loans * ticket)
+        profit_tot = float(ticket * u_re.sum())
+        point_roi[k] = profit_tot / invest_tot
+        point_def[k] = float(d_arr.mean())
+
+        if res_idx is not None and k in res_idx.index:
+            ref_roi = float(res_idx.loc[k, "roi_expost"])
+            ref_def = float(res_idx.loc[k, "default_rate_expost"])
+            assert np.isclose(point_roi[k], ref_roi, atol=1e-9), (
+                f"{k} ROI point estimate {point_roi[k]} != 06_strategy_results.csv {ref_roi}"
+            )
+            assert np.isclose(point_def[k], ref_def, atol=1e-9), (
+                f"{k} default rate {point_def[k]} != 06_strategy_results.csv {ref_def}"
+            )
+            loan_ci_roi[k] = (
+                float(res_idx.loc[k, "roi_expost_ci_low"]),
+                float(res_idx.loc[k, "roi_expost_ci_high"]),
+            )
+            loan_ci_def[k] = (
+                float(res_idx.loc[k, "default_rate_ci_low"]),
+                float(res_idx.loc[k, "default_rate_ci_high"]),
+            )
+
+        rng_loan = np.random.default_rng(seed)
+        b_idx = rng_loan.integers(0, n_loans, size=(n_boot, n_loans))
+        boot_roi_l = (ticket * u_re[b_idx].sum(axis=1)) / invest_tot
+        loan_boot_roi_series[k] = boot_roi_l
+        if k not in loan_ci_roi:
+            loan_ci_roi[k] = (
+                float(np.percentile(boot_roi_l, 2.5)),
+                float(np.percentile(boot_roi_l, 97.5)),
+            )
+            wl, wh = wilson_ci(float(d_arr.sum()), float(n_loans))
+            loan_ci_def[k] = (wl, wh)
+
+        grp = (
+            pd.DataFrame({"b": b_arr, "u": u_re, "d": d_arr})
+            .groupby("b", observed=True)
+            .agg(n=("u", "count"), u_sum=("u", "sum"), d_sum=("d", "sum"))
+        )
+        arr_n = np.zeros(m_union, dtype="float64")
+        arr_u = np.zeros(m_union, dtype="float64")
+        arr_d = np.zeros(m_union, dtype="float64")
+        pos = b_to_idx.loc[grp.index].to_numpy()
+        arr_n[pos] = grp["n"].to_numpy(dtype="float64")
+        arr_u[pos] = grp["u_sum"].to_numpy(dtype="float64")
+        arr_d[pos] = grp["d_sum"].to_numpy(dtype="float64")
+
+        counts_n[k] = arr_n
+        profits_eur[k] = ticket * arr_u
+        invests_eur[k] = ticket * arr_n
+        defaults_sum[k] = arr_d
+
+    rng = np.random.default_rng(seed)
+    draws = rng.integers(0, m_union, size=(n_boot, m_union))
+    weights = np.zeros((n_boot, m_union), dtype="float64")
+    for b_iter in range(n_boot):
+        weights[b_iter] = np.bincount(draws[b_iter], minlength=m_union)
+
+    cluster_boot_roi: dict[str, np.ndarray] = {}
+    cluster_boot_def: dict[str, np.ndarray] = {}
+    for k in strat_keys:
+        tot_inv = weights @ invests_eur[k]
+        tot_prof = weights @ profits_eur[k]
+        tot_n = weights @ counts_n[k]
+        tot_def = weights @ defaults_sum[k]
+        cluster_boot_roi[k] = tot_prof / tot_inv
+        cluster_boot_def[k] = tot_def / tot_n
+
+    rows: list[dict[str, Any]] = []
+    for k in strat_keys:
+        c_roi_lo, c_roi_hi = (
+            float(np.percentile(cluster_boot_roi[k], 2.5)),
+            float(np.percentile(cluster_boot_roi[k], 97.5)),
+        )
+        c_def_lo, c_def_hi = (
+            float(np.percentile(cluster_boot_def[k], 2.5)),
+            float(np.percentile(cluster_boot_def[k], 97.5)),
+        )
+        l_roi_lo, l_roi_hi = loan_ci_roi[k]
+        l_def_lo, l_def_hi = loan_ci_def[k]
+        rows.append(
+            {
+                "strategi": k,
+                "metrik": "roi_realisasi_12m",
+                "estimasi_titik": point_roi[k],
+                "ci_low_cluster": c_roi_lo,
+                "ci_high_cluster": c_roi_hi,
+                "ci_low_per_pinjaman": l_roi_lo,
+                "ci_high_per_pinjaman": l_roi_hi,
+                "n_peminjam_unik": n_unique_b[k],
+                "n_iterasi": int(n_boot),
+                "seed": int(seed),
+            }
+        )
+        rows.append(
+            {
+                "strategi": k,
+                "metrik": "default_12m_aktual",
+                "estimasi_titik": point_def[k],
+                "ci_low_cluster": c_def_lo,
+                "ci_high_cluster": c_def_hi,
+                "ci_low_per_pinjaman": l_def_lo,
+                "ci_high_per_pinjaman": l_def_hi,
+                "n_peminjam_unik": n_unique_b[k],
+                "n_iterasi": int(n_boot),
+                "seed": int(seed),
+            }
+        )
+
+    for comp in compare_strategies:
+        if comp == ref_strategy:
+            continue
+        diff_cluster_roi = cluster_boot_roi[ref_strategy] - cluster_boot_roi[comp]
+        diff_loan_roi = loan_boot_roi_series[ref_strategy] - loan_boot_roi_series[comp]
+        diff_point_roi = point_roi[ref_strategy] - point_roi[comp]
+        n_pair_b = int(
+            pd.unique(
+                np.concatenate(
+                    [
+                        opp.iloc[selections[ref_strategy]][borrower_col].astype(str).to_numpy(),
+                        opp.iloc[selections[comp]][borrower_col].astype(str).to_numpy(),
+                    ]
+                )
+            ).size
+        )
+        rows.append(
+            {
+                "strategi": f"{ref_strategy} - {comp}",
+                "metrik": "selisih_roi_realisasi_12m",
+                "estimasi_titik": diff_point_roi,
+                "ci_low_cluster": float(np.percentile(diff_cluster_roi, 2.5)),
+                "ci_high_cluster": float(np.percentile(diff_cluster_roi, 97.5)),
+                "ci_low_per_pinjaman": float(np.percentile(diff_loan_roi, 2.5)),
+                "ci_high_per_pinjaman": float(np.percentile(diff_loan_roi, 97.5)),
+                "n_peminjam_unik": n_pair_b,
+                "n_iterasi": int(n_boot),
+                "seed": int(seed),
+            }
+        )
+
+    out_df = pd.DataFrame(rows)
+    assert (out_df["ci_low_cluster"] <= out_df["estimasi_titik"] + 1e-12).all()
+    assert (out_df["estimasi_titik"] <= out_df["ci_high_cluster"] + 1e-12).all()
+    return out_df

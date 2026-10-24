@@ -383,3 +383,56 @@ def test_build_monthly_series_full_months_only() -> None:
     assert s["n_loans"].tolist() == [2.0, 1.0, 0.0]
     assert s["amount_loans"].tolist() == [300.0, 300.0, 0.0]
     assert s["amount_default"].tolist() == [0.0, 0.0, 100.0]
+
+
+
+def test_cluster_bootstrap_brackets_point_reproducible_and_paired_difference() -> None:
+    rng = np.random.default_rng(123)
+    borrowers = np.repeat([f"B{i:02d}" for i in range(30)], 3)
+    b_def = np.repeat(rng.integers(0, 2, size=30), 3)
+    f = rng.uniform(0.15, 0.30, size=90)
+    u_re = pr.unit_profit(b_def, f, 0.60)
+    opp = pd.DataFrame(
+        {
+            "UserName": borrowers,
+            "default_12m": b_def,
+            "u_expost": u_re,
+        }
+    )
+    sels = {
+        "S3": np.arange(0, 60),
+        "S2c": np.arange(15, 75),
+        "S4c": np.arange(30, 90),
+    }
+    cb1 = pr.cluster_bootstrap_portfolios(opp, sels, ticket=50.0, n_boot=200, seed=42)
+    cb2 = pr.cluster_bootstrap_portfolios(opp, sels, ticket=50.0, n_boot=200, seed=42)
+    cb3 = pr.cluster_bootstrap_portfolios(opp, sels, ticket=50.0, n_boot=200, seed=99)
+
+    pd.testing.assert_frame_equal(cb1, cb2)
+    assert not np.allclose(cb1["ci_low_cluster"].to_numpy(), cb3["ci_low_cluster"].to_numpy())
+    assert (cb1["ci_low_cluster"] <= cb1["estimasi_titik"] + 1e-12).all()
+    assert (cb1["estimasi_titik"] <= cb1["ci_high_cluster"] + 1e-12).all()
+
+    # Paired bootstrap proof: if S3 and S2c have identical selections, every iteration uses the
+    # exact same borrower draw so the paired difference S3 - S2c must be identically 0.
+    cb_same = pr.cluster_bootstrap_portfolios(
+        opp,
+        {"S3": np.arange(0, 60), "S2c": np.arange(0, 60)},
+        ticket=50.0,
+        compare_strategies=("S2c",),
+        n_boot=100,
+        seed=42,
+    )
+    diff_row = cb_same.loc[cb_same["strategi"] == "S3 - S2c"].iloc[0]
+    assert diff_row["estimasi_titik"] == pytest.approx(0.0, abs=1e-12)
+    assert diff_row["ci_low_cluster"] == pytest.approx(0.0, abs=1e-12)
+    assert diff_row["ci_high_cluster"] == pytest.approx(0.0, abs=1e-12)
+
+
+def test_wilson_ci_within_unit_interval_and_brackets_proportion() -> None:
+    for k, n in [(0, 28), (28, 28), (27, 90), (15, 67), (947, 4933), (224, 1402)]:
+        lo, hi = pr.wilson_ci(k, n)
+        p_hat = k / n
+        assert 0.0 <= lo <= p_hat + 1e-12
+        assert p_hat - 1e-12 <= hi <= 1.0
+        assert lo < hi

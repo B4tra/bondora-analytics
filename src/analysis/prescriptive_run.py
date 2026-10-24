@@ -1121,3 +1121,38 @@ def main() -> dict[str, Any]:
 
 if __name__ == "__main__":
     main()
+
+
+def build_s3_cluster_bootstrap_table(save_csv: bool = True) -> pd.DataFrame:
+    """Compute paired borrower-cluster bootstrap for S3 vs S2c and S4c and write ``06_s3_cluster_bootstrap.csv``."""
+    ensure_dirs()
+    inputs = load_inputs()
+    opp = build_opportunity_set(inputs)
+    clean = inputs["clean"]
+    opp["UserName"] = clean.set_index("LoanId").loc[opp["LoanId"], "UserName"].to_numpy()
+
+    cls = inputs["cls"]
+    tv_ids = cls.loc[cls["split"].isin(["train", "val"]) & (cls["default_12m"] == 1), "LoanId"]
+    tv = clean.set_index("LoanId").loc[tv_ids, ["PrincipalPaymentsMade", "Amount"]]
+    lgd = pr.estimate_loss_given_default(tv["PrincipalPaymentsMade"], tv["Amount"])
+    opp = pr.add_unit_profits(opp, lgd["L"])
+
+    n_select = int(BUDGET_EUR / TICKET_EUR)
+    limits = base_limits()
+    strat = run_strategies(opp, n_select, limits)
+    ref_df = pd.read_csv(TABLES_DIR / "06_strategy_results.csv")
+
+    cb_df = pr.cluster_bootstrap_portfolios(
+        opp,
+        strat["selections"],
+        ticket=TICKET_EUR,
+        borrower_col="UserName",
+        ref_strategy="S3",
+        compare_strategies=("S2c", "S4c"),
+        n_boot=N_BOOTSTRAP,
+        seed=RANDOM_SEED,
+        strategy_results_df=ref_df,
+    )
+    if save_csv:
+        cb_df.to_csv(TABLES_DIR / "06_s3_cluster_bootstrap.csv", index=False)
+    return cb_df

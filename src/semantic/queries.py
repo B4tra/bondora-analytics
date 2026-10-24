@@ -13,6 +13,7 @@ import rdflib
 from rdflib import BNode, Graph, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, SKOS
 
+from src.analysis.prescriptive import wilson_ci
 from src.config import (
     DATA_PROCESSED,
     DEFAULT_12M_COL,
@@ -683,142 +684,151 @@ def run_q4(
     def _pct(num: int, den: int) -> float:
         return (num / den * 100.0) if den > 0 else np.nan
 
+    def _w_lo(num: int, den: int) -> float:
+        return wilson_ci(float(num), float(den))[0] * 100.0 if den > 0 else np.nan
+
+    def _w_hi(num: int, den: int) -> float:
+        return wilson_ci(float(num), float(den))[1] * 100.0 if den > 0 else np.nan
+
+    def _make_q4_row(
+        kelompok: str,
+        kode_varian: str,
+        n_tot: int,
+        n_b: int,
+        n_def: int,
+        n_s3: int,
+        n_d12_s3: int,
+        catatan: str,
+    ) -> dict[str, Any]:
+        return {
+            "kelompok": kelompok,
+            "kode_varian": kode_varian,
+            "jumlah_pasangan_atau_pinjaman": int(n_tot),
+            "jumlah_peminjam": int(n_b),
+            "n_berakhir_default": int(n_def),
+            "persen_berakhir_default": _pct(n_def, n_tot),
+            "wilson_ci_low_default_pct": _w_lo(n_def, n_tot),
+            "wilson_ci_high_default_pct": _w_hi(n_def, n_tot),
+            "n_di_s3": int(n_s3),
+            "n_default_12m_di_s3": int(n_d12_s3),
+            "persen_default_12m_di_s3": _pct(n_d12_s3, n_s3),
+            "wilson_ci_low_s3_d12_pct": _w_lo(n_d12_s3, n_s3),
+            "wilson_ci_high_s3_d12_pct": _w_hi(n_d12_s3, n_s3),
+            "catatan": catatan,
+        }
+
+    vb_s3_n = int(vb_pd["in_s3"].sum())
+    vb_s3_d12 = int(vb_pd[vb_pd["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if vb_s3_n > 0 else 0
+    vc_s3_n = int(vc_pd["in_s3"].sum())
+    vc_s3_d12 = int(vc_pd[vc_pd["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if vc_s3_n > 0 else 0
+    b1_s3_n = int(pd_b1["in_s3"].sum())
+    b1_s3_d12 = int(pd_b1[pd_b1["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if b1_s3_n > 0 else 0
+    b1_res_s3_n = int(pd_b1_res["in_s3"].sum())
+    b1_res_s3_d12 = int(pd_b1_res[pd_b1_res["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if b1_res_s3_n > 0 else 0
+    b2_s3_n = int(pd_b2["in_s3"].sum())
+    b2_s3_d12 = int(pd_b2[pd_b2["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if b2_s3_n > 0 else 0
+
     summary_rows = [
-        {
-            "kelompok": "Varian (a) — Pinjaman ulang SETELAH bo:defaultDate pendahulu langsung (LoanDate > defaultDate)",
-            "kode_varian": "a_setelah_default",
-            "jumlah_pasangan_atau_pinjaman": len(va_sp),
-            "jumlah_peminjam": int(va_sp["borrower_uri_id"].nunique()) if len(va_sp) else 0,
-            "n_berakhir_default": int((va_sp["next_outcome_code"] == "Default").sum()),
-            "persen_berakhir_default": _pct(int((va_sp["next_outcome_code"] == "Default").sum()), len(va_sp)),
-            "n_di_s3": int(va_pd["in_s3"].sum()),
-            "n_default_12m_di_s3": int(pd_s3_dir["d12_int"].sum()),
-            "persen_default_12m_di_s3": _pct(int(pd_s3_dir["d12_int"].sum()), len(pd_s3_dir)),
-            "catatan": "Pinjaman ulang sejati setelah pendahulu langsung tercatat default (LoanDate > bo:defaultDate)",
-        },
-        {
-            "kelompok": "Varian (b) — Pinjaman lanjutan SEBELUM/SAMA DENGAN bo:defaultDate pendahulu (tumpang-tindih, LoanDate <= defaultDate)",
-            "kode_varian": "b_tumpang_tindih",
-            "jumlah_pasangan_atau_pinjaman": len(vb_sp),
-            "jumlah_peminjam": int(vb_sp["borrower_uri_id"].nunique()) if len(vb_sp) else 0,
-            "n_berakhir_default": int((vb_sp["next_outcome_code"] == "Default").sum()),
-            "persen_berakhir_default": _pct(int((vb_sp["next_outcome_code"] == "Default").sum()), len(vb_sp)),
-            "n_di_s3": int(vb_pd["in_s3"].sum()),
-            "n_default_12m_di_s3": int(vb_pd[vb_pd["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(vb_pd["in_s3"].sum()) > 0 else 0,
-            "persen_default_12m_di_s3": _pct(
-                int(vb_pd[vb_pd["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(vb_pd["in_s3"].sum()) > 0 else 0,
-                int(vb_pd["in_s3"].sum()),
-            ),
-            "catatan": "Pinjaman tumpang-tindih: dicairkan saat pinjaman lama belum default, lalu keduanya gagal bayar",
-        },
-        {
-            "kelompok": "Pendahulu Default tanpa bo:defaultDate (Status=Repaid dengan penghapusan pokok/bunga)",
-            "kode_varian": "tanpa_default_date",
-            "jumlah_pasangan_atau_pinjaman": len(vc_pd),
-            "jumlah_peminjam": int(vc_pd["UserName"].nunique()) if len(vc_pd) else 0,
-            "n_berakhir_default": int((vc_pd["outcome_code"] == "Default").sum()),
-            "persen_berakhir_default": _pct(int((vc_pd["outcome_code"] == "Default").sum()), len(vc_pd)),
-            "n_di_s3": int(vc_pd["in_s3"].sum()),
-            "n_default_12m_di_s3": int(vc_pd[vc_pd["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(vc_pd["in_s3"].sum()) > 0 else 0,
-            "persen_default_12m_di_s3": _pct(
-                int(vc_pd[vc_pd["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(vc_pd["in_s3"].sum()) > 0 else 0,
-                int(vc_pd["in_s3"].sum()),
-            ),
-            "catatan": "Tidak masuk Varian (a) maupun (b) karena DefaultDate kosong pada pendahulu",
-        },
-        {
-            "kelompok": "Pembanding Tingkat Dasar 1a — Semua pinjaman lanjutan yang pendahulunya TIDAK Default (semua status)",
-            "kode_varian": "pembanding_lanjut_prev_non_default_semua",
-            "jumlah_pasangan_atau_pinjaman": b1_total,
-            "jumlah_peminjam": b1_borrowers,
-            "n_berakhir_default": b1_def,
-            "persen_berakhir_default": _pct(b1_def, b1_total),
-            "n_di_s3": int(pd_b1["in_s3"].sum()),
-            "n_default_12m_di_s3": int(pd_b1[pd_b1["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(pd_b1["in_s3"].sum()) > 0 else 0,
-            "persen_default_12m_di_s3": _pct(
-                int(pd_b1[pd_b1["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(pd_b1["in_s3"].sum()) > 0 else 0,
-                int(pd_b1["in_s3"].sum()),
-            ),
-            "catatan": "Sebagian besar pinjaman lanjutan 2021-2022 masih berstatus Current sehingga belum selesai",
-        },
-        {
-            "kelompok": "Pembanding Tingkat Dasar 1b — Pinjaman lanjutan SELESAI (isResolved=true) yang pendahulunya TIDAK Default",
-            "kode_varian": "pembanding_lanjut_prev_non_default_selesai",
-            "jumlah_pasangan_atau_pinjaman": b1_res_total,
-            "jumlah_peminjam": b1_res_borrowers,
-            "n_berakhir_default": b1_res_def,
-            "persen_berakhir_default": _pct(b1_res_def, b1_res_total),
-            "n_di_s3": int(pd_b1_res["in_s3"].sum()),
-            "n_default_12m_di_s3": int(pd_b1_res[pd_b1_res["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(pd_b1_res["in_s3"].sum()) > 0 else 0,
-            "persen_default_12m_di_s3": _pct(
-                int(pd_b1_res[pd_b1_res["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(pd_b1_res["in_s3"].sum()) > 0 else 0,
-                int(pd_b1_res["in_s3"].sum()),
-            ),
-            "catatan": "Pembanding khusus pinjaman lanjutan yang sudah mencapai status akhir (Default / RepaidNoDefault)",
-        },
-        {
-            "kelompok": "Pembanding Tingkat Dasar 2 — Semua pinjaman selesai (bo:isResolved true) di dalam graf",
-            "kode_varian": "pembanding_semua_pinjaman_selesai_graf",
-            "jumlah_pasangan_atau_pinjaman": b2_total,
-            "jumlah_peminjam": b2_borrowers,
-            "n_berakhir_default": b2_def,
-            "persen_berakhir_default": _pct(b2_def, b2_total),
-            "n_di_s3": int(pd_b2["in_s3"].sum()),
-            "n_default_12m_di_s3": int(pd_b2[pd_b2["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(pd_b2["in_s3"].sum()) > 0 else 0,
-            "persen_default_12m_di_s3": _pct(
-                int(pd_b2[pd_b2["in_s3"]][DEFAULT_12M_COL].astype(int).sum()) if int(pd_b2["in_s3"].sum()) > 0 else 0,
-                int(pd_b2["in_s3"].sum()),
-            ),
-            "catatan": "Tingkat dasar Default pada seluruh 9.976 pinjaman selesai di graf sampel",
-        },
-        {
-            "kelompok": "Portofolio S3 — Pinjaman S3 dengan pendahulu langsung default SEBELUM LoanDate-nya (bo:precededBy, Varian a)",
-            "kode_varian": "s3_pendahulu_langsung_default_sebelum_loandate",
-            "jumlah_pasangan_atau_pinjaman": len(pd_s3_dir),
-            "jumlah_peminjam": s3_dir_borrowers,
-            "n_berakhir_default": int((pd_s3_dir["outcome_code"] == "Default").sum()),
-            "persen_berakhir_default": _pct(int((pd_s3_dir["outcome_code"] == "Default").sum()), len(pd_s3_dir)),
-            "n_di_s3": len(pd_s3_dir),
-            "n_default_12m_di_s3": s3_dir_d12,
-            "persen_default_12m_di_s3": _pct(s3_dir_d12, len(pd_s3_dir)),
-            "catatan": "Default 12m aktual S3 = 22,39% (15/67) vs sisa S3 = 19,20% (947/4.933)",
-        },
-        {
-            "kelompok": "Portofolio S3 — Sisa pinjaman S3 (tanpa pendahulu langsung default sebelum LoanDate-nya)",
-            "kode_varian": "s3_sisa_tanpa_pendahulu_langsung_default_sebelum_loandate",
-            "jumlah_pasangan_atau_pinjaman": len(pd_s3_rest_dir),
-            "jumlah_peminjam": int(pd_s3_rest_dir["UserName"].nunique()) if len(pd_s3_rest_dir) else 0,
-            "n_berakhir_default": int((pd_s3_rest_dir["outcome_code"] == "Default").sum()),
-            "persen_berakhir_default": _pct(int((pd_s3_rest_dir["outcome_code"] == "Default").sum()), len(pd_s3_rest_dir)),
-            "n_di_s3": len(pd_s3_rest_dir),
-            "n_default_12m_di_s3": int(pd_s3_rest_dir["d12_int"].sum()),
-            "persen_default_12m_di_s3": _pct(int(pd_s3_rest_dir["d12_int"].sum()), len(pd_s3_rest_dir)),
-            "catatan": "Pembanding sisa S3 untuk definisi pendahulu langsung (bo:precededBy)",
-        },
-        {
-            "kelompok": "Portofolio S3 — Pinjaman S3 dengan pendahulu MANA PUN di rantai default SEBELUM LoanDate-nya (bo:precededBy+)",
-            "kode_varian": "s3_pendahulu_rantai_default_sebelum_loandate",
-            "jumlah_pasangan_atau_pinjaman": len(pd_s3_any),
-            "jumlah_peminjam": s3_any_borrowers,
-            "n_berakhir_default": int((pd_s3_any["outcome_code"] == "Default").sum()),
-            "persen_berakhir_default": _pct(int((pd_s3_any["outcome_code"] == "Default").sum()), len(pd_s3_any)),
-            "n_di_s3": len(pd_s3_any),
-            "n_default_12m_di_s3": s3_any_d12,
-            "persen_default_12m_di_s3": _pct(s3_any_d12, len(pd_s3_any)),
-            "catatan": "Default 12m aktual S3 = 19,59% (19/97) vs sisa S3 = 19,23% (943/4.903)",
-        },
-        {
-            "kelompok": "Portofolio S3 — Sisa pinjaman S3 (tanpa pendahulu mana pun di rantai default sebelum LoanDate-nya)",
-            "kode_varian": "s3_sisa_tanpa_pendahulu_rantai_default_sebelum_loandate",
-            "jumlah_pasangan_atau_pinjaman": len(pd_s3_rest_any),
-            "jumlah_peminjam": int(pd_s3_rest_any["UserName"].nunique()) if len(pd_s3_rest_any) else 0,
-            "n_berakhir_default": int((pd_s3_rest_any["outcome_code"] == "Default").sum()),
-            "persen_berakhir_default": _pct(int((pd_s3_rest_any["outcome_code"] == "Default").sum()), len(pd_s3_rest_any)),
-            "n_di_s3": len(pd_s3_rest_any),
-            "n_default_12m_di_s3": int(pd_s3_rest_any["d12_int"].sum()),
-            "persen_default_12m_di_s3": _pct(int(pd_s3_rest_any["d12_int"].sum()), len(pd_s3_rest_any)),
-            "catatan": "Pembanding sisa S3 untuk definisi pendahulu mana pun di rantai (bo:precededBy+)",
-        },
+        _make_q4_row(
+            "Varian (a) — Pinjaman ulang SETELAH bo:defaultDate pendahulu langsung (LoanDate > defaultDate)",
+            "a_setelah_default",
+            len(va_sp),
+            int(va_sp["borrower_uri_id"].nunique()) if len(va_sp) else 0,
+            int((va_sp["next_outcome_code"] == "Default").sum()),
+            int(va_pd["in_s3"].sum()),
+            int(pd_s3_dir["d12_int"].sum()),
+            "Pinjaman ulang sejati setelah pendahulu langsung tercatat default (LoanDate > bo:defaultDate); 27/90 = 30,00% (Wilson 95%: [21,51%; 40,13%])",
+        ),
+        _make_q4_row(
+            "Varian (b) — Pinjaman lanjutan SEBELUM/SAMA DENGAN bo:defaultDate pendahulu (tumpang-tindih, LoanDate <= defaultDate)",
+            "b_tumpang_tindih",
+            len(vb_sp),
+            int(vb_sp["borrower_uri_id"].nunique()) if len(vb_sp) else 0,
+            int((vb_sp["next_outcome_code"] == "Default").sum()),
+            vb_s3_n,
+            vb_s3_d12,
+            "Pinjaman tumpang-tindih: dicairkan saat pinjaman lama belum default, lalu keduanya gagal bayar bersama; 1.658/1.699 = 97,59% (Wilson 95%: [96,74%; 98,22%])",
+        ),
+        _make_q4_row(
+            "Pendahulu Default tanpa bo:defaultDate (Status=Repaid dengan penghapusan pokok/bunga)",
+            "tanpa_default_date",
+            len(vc_pd),
+            int(vc_pd["UserName"].nunique()) if len(vc_pd) else 0,
+            int((vc_pd["outcome_code"] == "Default").sum()),
+            vc_s3_n,
+            vc_s3_d12,
+            "Tidak masuk Varian (a) maupun (b) karena DefaultDate kosong pada pendahulu",
+        ),
+        _make_q4_row(
+            "Pembanding Tingkat Dasar 1a — Semua pinjaman lanjutan yang pendahulunya TIDAK Default (semua status)",
+            "pembanding_lanjut_prev_non_default_semua",
+            b1_total,
+            b1_borrowers,
+            b1_def,
+            b1_s3_n,
+            b1_s3_d12,
+            "Sebagian besar pinjaman lanjutan 2021-2022 masih berstatus Current sehingga belum selesai",
+        ),
+        _make_q4_row(
+            "Pembanding Tingkat Dasar 1b — Pinjaman lanjutan SELESAI (isResolved=true) yang pendahulunya TIDAK Default",
+            "pembanding_lanjut_prev_non_default_selesai",
+            b1_res_total,
+            b1_res_borrowers,
+            b1_res_def,
+            b1_res_s3_n,
+            b1_res_s3_d12,
+            "Pembanding khusus pinjaman lanjutan yang sudah mencapai status akhir (Default / RepaidNoDefault)",
+        ),
+        _make_q4_row(
+            "Pembanding Tingkat Dasar 2 — Semua pinjaman selesai (bo:isResolved true) di dalam graf",
+            "pembanding_semua_pinjaman_selesai_graf",
+            b2_total,
+            b2_borrowers,
+            b2_def,
+            b2_s3_n,
+            b2_s3_d12,
+            "Tingkat dasar Default pada seluruh 9.976 pinjaman selesai di graf sampel",
+        ),
+        _make_q4_row(
+            "Portofolio S3 — Pinjaman S3 dengan pendahulu langsung default SEBELUM LoanDate-nya (bo:precededBy, Varian a)",
+            "s3_pendahulu_langsung_default_sebelum_loandate",
+            len(pd_s3_dir),
+            s3_dir_borrowers,
+            int((pd_s3_dir["outcome_code"] == "Default").sum()),
+            len(pd_s3_dir),
+            s3_dir_d12,
+            "Default 12m aktual S3 = 22,39% (15/67, Wilson 95%: [14,06%; 33,71%]) vs sisa S3 = 19,20% (947/4.933, Wilson 95%: [18,12%; 20,32%]); tidak ada bukti selisih (n kecil, interval lebar)",
+        ),
+        _make_q4_row(
+            "Portofolio S3 — Sisa pinjaman S3 (tanpa pendahulu langsung default sebelum LoanDate-nya)",
+            "s3_sisa_tanpa_pendahulu_langsung_default_sebelum_loandate",
+            len(pd_s3_rest_dir),
+            int(pd_s3_rest_dir["UserName"].nunique()) if len(pd_s3_rest_dir) else 0,
+            int((pd_s3_rest_dir["outcome_code"] == "Default").sum()),
+            len(pd_s3_rest_dir),
+            int(pd_s3_rest_dir["d12_int"].sum()),
+            "Pembanding sisa S3 untuk definisi pendahulu langsung (bo:precededBy); tidak ada bukti selisih terhadap 15/67 (interval Wilson saling tumpang-tindih)",
+        ),
+        _make_q4_row(
+            "Portofolio S3 — Pinjaman S3 dengan pendahulu MANA PUN di rantai default SEBELUM LoanDate-nya (bo:precededBy+)",
+            "s3_pendahulu_rantai_default_sebelum_loandate",
+            len(pd_s3_any),
+            s3_any_borrowers,
+            int((pd_s3_any["outcome_code"] == "Default").sum()),
+            len(pd_s3_any),
+            s3_any_d12,
+            "Default 12m aktual S3 = 19,59% (19/97, Wilson 95%: [12,91%; 28,58%]) vs sisa S3 = 19,23% (943/4.903, Wilson 95%: [18,15%; 20,36%]); tidak ada bukti selisih (n kecil, interval lebar)",
+        ),
+        _make_q4_row(
+            "Portofolio S3 — Sisa pinjaman S3 (tanpa pendahulu mana pun di rantai default sebelum LoanDate-nya)",
+            "s3_sisa_tanpa_pendahulu_rantai_default_sebelum_loandate",
+            len(pd_s3_rest_any),
+            int(pd_s3_rest_any["UserName"].nunique()) if len(pd_s3_rest_any) else 0,
+            int((pd_s3_rest_any["outcome_code"] == "Default").sum()),
+            len(pd_s3_rest_any),
+            int(pd_s3_rest_any["d12_int"].sum()),
+            "Pembanding sisa S3 untuk definisi pendahulu mana pun di rantai (bo:precededBy+); tidak ada bukti selisih terhadap 19/97",
+        ),
     ]
     df_q4_summary = pd.DataFrame(summary_rows)
     return df_sparql, df_q4_summary, elapsed
@@ -938,6 +948,7 @@ def run_q5(
         n_l_pd = len(grp)
         n_d12_pd = int(grp["d12_int"].sum())
         d12_rate_pd = n_d12_pd / max(1, n_l_pd) * 100.0
+        w_lo_k, w_hi_k = wilson_ci(float(n_d12_pd), float(n_l_pd))
         p_mean_pd = float(grp["p_calibrated"].mean()) * 100.0
 
         sp_k = df_s3_b_sp[df_s3_b_sp["n_s3_loans"] == k_int]
@@ -957,6 +968,8 @@ def run_q5(
                 "persen_pinjaman_s3": n_l_pd / max(1, tot_s3_loans) * 100.0,
                 "n_default_12m_aktual": n_d12_pd,
                 "default_rate_12m_aktual_pct": d12_rate_pd,
+                "wilson_ci_low_pct": w_lo_k * 100.0,
+                "wilson_ci_high_pct": w_hi_k * 100.0,
                 "p_calibrated_rata2_pct": p_mean_pd,
                 "catatan": "Statistik lengkap portofolio S3 (n=5.000 pinjaman)",
             }
@@ -964,6 +977,8 @@ def run_q5(
 
     if tot_s3_loans > 0:
         gt1_grp = s3_pd[s3_pd["n_pinjaman_s3_per_peminjam"] >= 2]
+        n_d12_gt1 = int(gt1_grp["d12_int"].sum())
+        w_lo_gt1, w_hi_gt1 = wilson_ci(float(n_d12_gt1), float(len(gt1_grp)))
         s3_conc_rows.append(
             {
                 "jumlah_pinjaman_s3_per_peminjam": ">=2 (Subtotal multi-pinjaman di S3)",
@@ -971,12 +986,20 @@ def run_q5(
                 "persen_peminjam_s3": int(gt1_grp["UserName"].nunique()) / max(1, tot_s3_borrowers) * 100.0,
                 "jumlah_pinjaman_s3": len(gt1_grp),
                 "persen_pinjaman_s3": len(gt1_grp) / max(1, tot_s3_loans) * 100.0,
-                "n_default_12m_aktual": int(gt1_grp["d12_int"].sum()),
+                "n_default_12m_aktual": n_d12_gt1,
                 "default_rate_12m_aktual_pct": float(gt1_grp["d12_int"].mean()) * 100.0 if len(gt1_grp) else 0.0,
+                "wilson_ci_low_pct": w_lo_gt1 * 100.0,
+                "wilson_ci_high_pct": w_hi_gt1 * 100.0,
                 "p_calibrated_rata2_pct": float(gt1_grp["p_calibrated"].mean()) * 100.0 if len(gt1_grp) else 0.0,
-                "catatan": "Peminjam dengan >=2 pinjaman di S3 memiliki default 12m aktual lebih rendah (15,98%) dibanding 1 pinjaman (20,51%)",
+                "catatan": (
+                    "CATATAN KETERBATASAN (BUKAN REKOMENDASI): Default berkorelasi kuat dalam satu peminjam "
+                    "(Varian b: 97,59%), dan hipotesis 'batasi pinjaman per peminjam di S3' tidak didukung data "
+                    "(default S3 peminjam dengan >= 2 pinjaman S3 = 15,98% [14,15%; 17,99%] vs 20,51% [19,22%; 21,86%] untuk 1 pinjaman)"
+                ),
             }
         )
+        n_d12_tot = int(s3_pd["d12_int"].sum())
+        w_lo_tot, w_hi_tot = wilson_ci(float(n_d12_tot), float(tot_s3_loans))
         s3_conc_rows.append(
             {
                 "jumlah_pinjaman_s3_per_peminjam": "TOTAL S3",
@@ -984,8 +1007,10 @@ def run_q5(
                 "persen_peminjam_s3": 100.0,
                 "jumlah_pinjaman_s3": tot_s3_loans,
                 "persen_pinjaman_s3": 100.0,
-                "n_default_12m_aktual": int(s3_pd["d12_int"].sum()),
+                "n_default_12m_aktual": n_d12_tot,
                 "default_rate_12m_aktual_pct": float(s3_pd["d12_int"].mean()) * 100.0,
+                "wilson_ci_low_pct": w_lo_tot * 100.0,
+                "wilson_ci_high_pct": w_hi_tot * 100.0,
                 "p_calibrated_rata2_pct": float(s3_pd["p_calibrated"].mean()) * 100.0,
                 "catatan": "Total 5.000 pinjaman S3 pada 4.242 peminjam unik",
             }
@@ -1199,11 +1224,15 @@ def build_insight_action_table(
     df_prep: pd.DataFrame,
 ) -> pd.DataFrame:
     """Construct `reports/tables/07_insight_action.csv` linking Tahap 2-5 findings and new relational findings."""
-    # 1. Read and assert population statistics directly from Tahap 3 tables
+    # 1. Read and assert population statistics directly from Tahap 3 & Tahap 4 tables
     seg_path = TABLES_DIR / "03_default_rate_horizon_by_segment.csv"
     rat_path = TABLES_DIR / "03_rating_vs_observed_12m.csv"
+    lb_path = TABLES_DIR / "04_level_bias.csv"
+    sub_path = TABLES_DIR / "04_subgroup_performance.csv"
     assert seg_path.exists(), f"Missing {seg_path}"
     assert rat_path.exists(), f"Missing {rat_path}"
+    assert lb_path.exists(), f"Missing {lb_path}"
+    assert sub_path.exists(), f"Missing {sub_path}"
 
     seg_df = pd.read_csv(seg_path)
     c_pop = seg_df[(seg_df["variabel"] == "Country") & (seg_df["horizon"] == "12m")].set_index("segmen")
@@ -1225,6 +1254,47 @@ def build_insight_action_table(
     es_pop_pct = float(c_pop.loc["ES", "default_rate"]) * 100.0
     sk_pop_pct = float(c_pop.loc["SK", "default_rate"]) * 100.0
     assert ee_pop_pct < fi_pop_pct < es_pop_pct < sk_pop_pct
+
+    # Read Tahap 4 test split p_calibrated directly from 04_level_bias.csv & 04_subgroup_performance.csv
+    lb_df = pd.read_csv(lb_path)
+    lb_test_all = lb_df[(lb_df["cakupan"] == "Seluruh") & (lb_df["split"] == "test")].iloc[0]
+    lb_test_c = lb_df[(lb_df["cakupan"] == "Country") & (lb_df["split"] == "test")].set_index("subgrup")
+    sub_df = pd.read_csv(sub_path)
+    sub_test_c = sub_df[(sub_df["dimensi"] == "Country") & (sub_df["kode_model"] == "LGBM-A")].set_index("subgrup")
+
+    for c_key in ["EE", "FI", "ES"]:
+        assert np.isclose(
+            float(lb_test_c.loc[c_key, "mean_p_calibrated"]),
+            float(sub_test_c.loc[c_key, "mean_pred_prob_calibrated"]),
+            atol=1e-6,
+        )
+        assert np.isclose(
+            float(lb_test_c.loc[c_key, "default_12m_aktual"]),
+            float(sub_test_c.loc[c_key, "observed_default_rate"]),
+            atol=1e-6,
+        )
+
+    n_test_all = int(lb_test_all["n"])
+    p_test_all_pct = float(lb_test_all["mean_p_calibrated"]) * 100.0
+    d_test_all_pct = float(lb_test_all["default_12m_aktual"]) * 100.0
+    p_ee_test_pct = float(lb_test_c.loc["EE", "mean_p_calibrated"]) * 100.0
+    p_fi_test_pct = float(lb_test_c.loc["FI", "mean_p_calibrated"]) * 100.0
+    p_es_test_pct = float(lb_test_c.loc["ES", "mean_p_calibrated"]) * 100.0
+    d_ee_test_pct = float(lb_test_c.loc["EE", "default_12m_aktual"]) * 100.0
+    d_fi_test_pct = float(lb_test_c.loc["FI", "default_12m_aktual"]) * 100.0
+    d_es_test_pct = float(lb_test_c.loc["ES", "default_12m_aktual"]) * 100.0
+    n_ee_test = int(lb_test_c.loc["EE", "n"])
+    n_fi_test = int(lb_test_c.loc["FI", "n"])
+    n_es_test = int(lb_test_c.loc["ES", "n"])
+
+    assert n_ee_test + n_fi_test + n_es_test == n_test_all == 54_283
+    weighted_test_p_pct = (
+        n_ee_test * p_ee_test_pct + n_fi_test * p_fi_test_pct + n_es_test * p_es_test_pct
+    ) / n_test_all
+    assert abs(weighted_test_p_pct - 32.96) <= 0.05, (
+        f"Country-weighted test p_calibrated {weighted_test_p_pct:.4f}% does not match 32,96% within 0,05 pp"
+    )
+    assert abs(weighted_test_p_pct - p_test_all_pct) <= 0.05
 
     rat_df = pd.read_csv(rat_path).set_index("Rating")
     rating_order = ["AA", "A", "B", "C", "D", "E", "F", "HR"]
@@ -1310,7 +1380,7 @@ def build_insight_action_table(
     rows = [
         {
             "temuan_sebelumnya": "Perbedaan tingkat gagal bayar antar negara dan pergeseran komposisi hasil menurut era pencatatan",
-            "sumber_tahap": "Tahap 2 (EDA) & Tahap 3 (Diagnostic: H1, H7 — 03_default_rate_horizon_by_segment.csv)",
+            "sumber_tahap": "Tahap 2 (EDA), Tahap 3 (03_default_rate_horizon_by_segment.csv) & Tahap 4 (04_level_bias.csv, 04_subgroup_performance.csv)",
             "query_sparql": "Q2 (07_q2_default12m_country_era.csv) & Q8 (07_q8_outcome_era_country.csv)",
             "hasil_graf": (
                 f"Default rate 12 bulan pada sampel graf (n={int(q2_df['n_teramati_12m'].sum()):,} teramati): {q2_str}. "
@@ -1322,9 +1392,14 @@ def build_insight_action_table(
                 f"EE {_fmt_pct_id(ee_pop_pct)} (n={int(c_pop.loc['EE', 'n']):,}), "
                 f"FI {_fmt_pct_id(fi_pop_pct)} (n={int(c_pop.loc['FI', 'n']):,}), "
                 f"ES {_fmt_pct_id(es_pop_pct)} (n={int(c_pop.loc['ES', 'n']):,}), "
-                f"SK {_fmt_pct_id(sk_pop_pct)} (n={int(c_pop.loc['SK', 'n']):,})."
+                f"SK {_fmt_pct_id(sk_pop_pct)} (n={int(c_pop.loc['SK', 'n']):,}); "
+                f"rata-rata p_calibrated uji Tahap 4 (04_level_bias.csv & 04_subgroup_performance.csv, n={n_test_all:,}, "
+                f"rata-rata uji {_fmt_pct_id(p_test_all_pct)} vs default 12 bulan aktual {_fmt_pct_id(d_test_all_pct)}): "
+                f"EE {_fmt_pct_id(p_ee_test_pct)} (aktual {_fmt_pct_id(d_ee_test_pct)}, n={n_ee_test:,}), "
+                f"FI {_fmt_pct_id(p_fi_test_pct)} (aktual {_fmt_pct_id(d_fi_test_pct)}, n={n_fi_test:,}), "
+                f"ES {_fmt_pct_id(p_es_test_pct)} (aktual {_fmt_pct_id(d_es_test_pct)}, n={n_es_test:,})."
             ),
-            "catatan": "ANGKA SAMPEL: Proporsi sampel dipengaruhi masuknya seluruh 5.000 pinjaman S3 (2021-2022) dan perluasan peminjam; gunakan angka Tahap 3 untuk estimasi populasi.",
+            "catatan": "ANGKA SAMPEL: Proporsi sampel dipengaruhi masuknya seluruh 5.000 pinjaman S3 (2021-2022) dan perluasan peminjam; gunakan angka Tahap 3 dan Tahap 4 untuk acuan populasi/uji.",
         },
         {
             "temuan_sebelumnya": "Urutan tingkat gagal bayar monoton terhadap kelas rating (AA s.d. HR) namun terdapat deviasi prediktif tingkat individu",
@@ -1354,10 +1429,12 @@ def build_insight_action_table(
             "hasil_graf": (
                 f"Varian (a) [LoanDate > bo:defaultDate pendahulu langsung, pinjaman ulang setelah default]: "
                 f"{int(va_row['jumlah_pasangan_atau_pinjaman']):,} pasangan ({int(va_row['jumlah_peminjam']):,} peminjam), "
-                f"{_fmt_pct_id(float(va_row['persen_berakhir_default']))} ({int(va_row['n_berakhir_default'])}/{int(va_row['jumlah_pasangan_atau_pinjaman'])}) berakhir Default. "
+                f"{_fmt_pct_id(float(va_row['persen_berakhir_default']))} ({int(va_row['n_berakhir_default'])}/{int(va_row['jumlah_pasangan_atau_pinjaman'])}, "
+                f"Wilson 95%: [{_fmt_pct_id(float(va_row['wilson_ci_low_default_pct']))}; {_fmt_pct_id(float(va_row['wilson_ci_high_default_pct']))}]) berakhir Default. "
                 f"Varian (b) [LoanDate <= bo:defaultDate pendahulu, tumpang-tindih]: "
                 f"{int(vb_row['jumlah_pasangan_atau_pinjaman']):,} pasangan ({int(vb_row['jumlah_peminjam']):,} peminjam), "
-                f"{_fmt_pct_id(float(vb_row['persen_berakhir_default']))} ({int(vb_row['n_berakhir_default']):,}/{int(vb_row['jumlah_pasangan_atau_pinjaman']):,}) berakhir Default "
+                f"{_fmt_pct_id(float(vb_row['persen_berakhir_default']))} ({int(vb_row['n_berakhir_default']):,}/{int(vb_row['jumlah_pasangan_atau_pinjaman']):,}, "
+                f"Wilson 95%: [{_fmt_pct_id(float(vb_row['wilson_ci_low_default_pct']))}; {_fmt_pct_id(float(vb_row['wilson_ci_high_default_pct']))}]) berakhir Default "
                 f"(ditambah 3 pasangan pendahulu Default tanpa DefaultDate). "
                 f"Pembanding tingkat dasar: pinjaman lanjutan dengan pendahulu TIDAK Default = {_fmt_pct_id(float(b1_all_row['persen_berakhir_default']))} "
                 f"({int(b1_all_row['n_berakhir_default'])}/{int(b1_all_row['jumlah_pasangan_atau_pinjaman']):,} semua; "
@@ -1368,13 +1445,23 @@ def build_insight_action_table(
             "hasil_populasi": (
                 f"Pada portofolio S3 (n=5.000): terdapat {int(s3_dir_row['n_di_s3'])} pinjaman S3 ({int(s3_dir_row['jumlah_peminjam'])} peminjam) "
                 f"yang pendahulu langsungnya default SEBELUM LoanDate-nya, dengan default 12m aktual {_fmt_pct_id(float(s3_dir_row['persen_default_12m_di_s3']))} "
-                f"({int(s3_dir_row['n_default_12m_di_s3'])}/{int(s3_dir_row['n_di_s3'])}) vs sisa S3 {_fmt_pct_id(float(s3_rest_dir_row['persen_default_12m_di_s3']))} "
-                f"({int(s3_rest_dir_row['n_default_12m_di_s3']):,}/{int(s3_rest_dir_row['n_di_s3']):,}); "
+                f"({int(s3_dir_row['n_default_12m_di_s3'])}/{int(s3_dir_row['n_di_s3'])}, "
+                f"Wilson 95%: [{_fmt_pct_id(float(s3_dir_row['wilson_ci_low_s3_d12_pct']))}; {_fmt_pct_id(float(s3_dir_row['wilson_ci_high_s3_d12_pct']))}]) "
+                f"vs sisa S3 {_fmt_pct_id(float(s3_rest_dir_row['persen_default_12m_di_s3']))} "
+                f"({int(s3_rest_dir_row['n_default_12m_di_s3']):,}/{int(s3_rest_dir_row['n_di_s3']):,}, "
+                f"Wilson 95%: [{_fmt_pct_id(float(s3_rest_dir_row['wilson_ci_low_s3_d12_pct']))}; {_fmt_pct_id(float(s3_rest_dir_row['wilson_ci_high_s3_d12_pct']))}]) — "
+                f"tidak ada bukti selisih (n kecil, interval lebar); "
                 f"bila dihitung terhadap pendahulu MANA PUN di rantai (bo:precededBy+), terdapat {int(s3_any_row['n_di_s3'])} pinjaman S3 "
-                f"dengan default 12m aktual {_fmt_pct_id(float(s3_any_row['persen_default_12m_di_s3']))} ({int(s3_any_row['n_default_12m_di_s3'])}/{int(s3_any_row['n_di_s3'])}) "
+                f"dengan default 12m aktual {_fmt_pct_id(float(s3_any_row['persen_default_12m_di_s3']))} ({int(s3_any_row['n_default_12m_di_s3'])}/{int(s3_any_row['n_di_s3'])}, "
+                f"Wilson 95%: [{_fmt_pct_id(float(s3_any_row['wilson_ci_low_s3_d12_pct']))}; {_fmt_pct_id(float(s3_any_row['wilson_ci_high_s3_d12_pct']))}]) "
                 f"vs sisa S3 {_fmt_pct_id(float(s3_rest_any_row['persen_default_12m_di_s3']))} ({int(s3_rest_any_row['n_default_12m_di_s3']):,}/{int(s3_rest_any_row['n_di_s3']):,})."
             ),
-            "catatan": "WAWASAN RELASIONAL: Mayoritas pasangan Q4 (1.699 dari 1.792) adalah pinjaman tumpang-tindih (Varian b) yang gagal bayar bersamaan; pinjaman ulang sejati setelah default pendahulu langsung (Varian a, n=90, 67 di S3) memiliki default 12m aktual 22,39% (+3,19 poin di atas sisa S3).",
+            "catatan": (
+                "CATATAN KETERBATASAN (BUKAN REKOMENDASI): Default berkorelasi kuat di dalam satu peminjam "
+                "(Varian b tumpang-tindih: 97,59% berakhir Default bersama); pada pinjaman S3 yang pendahulunya default "
+                "sebelum LoanDate (15/67 = 22,39% [14,06%; 33,71%] vs 947/4.933 = 19,20% [18,12%; 20,32%]), "
+                "tidak ada bukti selisih karena n kecil dan interval Wilson lebar."
+            ),
         },
         {
             "temuan_sebelumnya": "Temuan relasional baru (belum ada di Tahap 1-5): struktur panjang rantai peminjaman ulang dan distribusi konsentrasi peminjam di S3",
@@ -1388,13 +1475,25 @@ def build_insight_action_table(
             ),
             "hasil_populasi": (
                 f"Distribusi langsung pada portofolio S3 (5.000 pinjaman pada 4.242 peminjam unik): "
-                f"1 pinjaman/peminjam = {int(s3_k1['jumlah_peminjam']):,} peminjam ({int(s3_k1['jumlah_pinjaman_s3']):,} pinjaman, default 12m aktual {_fmt_pct_id(float(s3_k1['default_rate_12m_aktual_pct']))}); "
-                f"2 pinjaman/peminjam = {int(s3_k2['jumlah_peminjam']):,} peminjam ({int(s3_k2['jumlah_pinjaman_s3']):,} pinjaman, default 12m aktual {_fmt_pct_id(float(s3_k2['default_rate_12m_aktual_pct']))}); "
-                f"3 pinjaman/peminjam = {int(s3_k3['jumlah_peminjam']):,} peminjam ({int(s3_k3['jumlah_pinjaman_s3']):,} pinjaman, default 12m aktual {_fmt_pct_id(float(s3_k3['default_rate_12m_aktual_pct']))}); "
+                f"1 pinjaman/peminjam = {int(s3_k1['jumlah_peminjam']):,} peminjam ({int(s3_k1['jumlah_pinjaman_s3']):,} pinjaman, "
+                f"default 12m aktual {_fmt_pct_id(float(s3_k1['default_rate_12m_aktual_pct']))} "
+                f"[{_fmt_pct_id(float(s3_k1['wilson_ci_low_pct']))}; {_fmt_pct_id(float(s3_k1['wilson_ci_high_pct']))}]); "
+                f"2 pinjaman/peminjam = {int(s3_k2['jumlah_peminjam']):,} peminjam ({int(s3_k2['jumlah_pinjaman_s3']):,} pinjaman, "
+                f"default 12m aktual {_fmt_pct_id(float(s3_k2['default_rate_12m_aktual_pct']))} "
+                f"[{_fmt_pct_id(float(s3_k2['wilson_ci_low_pct']))}; {_fmt_pct_id(float(s3_k2['wilson_ci_high_pct']))}]); "
+                f"3 pinjaman/peminjam = {int(s3_k3['jumlah_peminjam']):,} peminjam ({int(s3_k3['jumlah_pinjaman_s3']):,} pinjaman, "
+                f"default 12m aktual {_fmt_pct_id(float(s3_k3['default_rate_12m_aktual_pct']))} "
+                f"[{_fmt_pct_id(float(s3_k3['wilson_ci_low_pct']))}; {_fmt_pct_id(float(s3_k3['wilson_ci_high_pct']))}]); "
                 f"4-7 pinjaman/peminjam = 10 peminjam (46 pinjaman, 2 default pada k=7); "
-                f"subtotal >=2 pinjaman/peminjam di S3 = {int(s3_kge2['jumlah_peminjam']):,} peminjam ({int(s3_kge2['jumlah_pinjaman_s3']):,} pinjaman, default 12m aktual {_fmt_pct_id(float(s3_kge2['default_rate_12m_aktual_pct']))})."
+                f"subtotal >=2 pinjaman/peminjam di S3 = {int(s3_kge2['jumlah_peminjam']):,} peminjam ({int(s3_kge2['jumlah_pinjaman_s3']):,} pinjaman, "
+                f"default 12m aktual {_fmt_pct_id(float(s3_kge2['default_rate_12m_aktual_pct']))} "
+                f"[{_fmt_pct_id(float(s3_kge2['wilson_ci_low_pct']))}; {_fmt_pct_id(float(s3_kge2['wilson_ci_high_pct']))}])."
             ),
-            "catatan": "HIPOTESIS TINDAK LANJUT: Pembatasan jumlah pinjaman per peminjam diperlakukan sebagai hipotesis diversifikasi eksposur idiosinkratik (di S3, peminjam dengan >=2 pinjaman justru memiliki default 12m aktual 15,98% vs 20,51% pada peminjam 1 pinjaman).",
+            "catatan": (
+                "CATATAN KETERBATASAN (BUKAN REKOMENDASI): Default berkorelasi kuat dalam satu peminjam (Varian b: 97,59%), "
+                "dan hipotesis 'batasi pinjaman per peminjam di S3' tidak didukung data "
+                "(default S3 peminjam dengan >= 2 pinjaman S3 = 15,98% [14,15%; 17,99%] vs 20,51% [19,22%; 21,86%] untuk 1 pinjaman)."
+            ),
         },
     ]
     return pd.DataFrame(rows)
