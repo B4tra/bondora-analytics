@@ -1,0 +1,5 @@
+metrik_atau_kelas,sebelum_inferensi,sesudah_inferensi_owlrl,selisih_atau_manual_sparql,hitung_pandas,waktu_detik,status_verifikasi,catatan
+total_triples,340461,438342,97881,,48.4942,LULUS,Penutupan deduktif RDFS/OWL-RL pada salinan graf (graf asli tidak ditimpa)
+bo:DefaultedLoan,0,4460,4460,4460.0,48.4942,LULUS (identik),Pinjaman dengan bo:hasOutcome bo:Default
+bo:CensoredLoan,0,10024,10024,10024.0,48.4942,LULUS (identik),Pinjaman dengan bo:hasOutcome bo:Current atau bo:LateNotDefault
+bo:HighRiskRatedLoan,0,6960,6960,6960.0,48.4942,LULUS (identik),"Pinjaman dengan bo:ratedAs rating yang skos:broader bo:TingkatTinggi (E, F, HR)"
