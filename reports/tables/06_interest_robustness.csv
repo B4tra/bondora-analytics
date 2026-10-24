@@ -1,0 +1,7 @@
+opsi,roi_exante_Interest,roi_exante_r_implisit,roi_expost_r_implisit,memenuhi_batasan,irisan_dengan_S3_share,catatan,opsi_terbaik_exante_patuh
+S1,-0.038794616950726876,0.011461648069531809,0.06794673327875349,False,0.0,"seleksi tetap, hanya penilaian diganti",
+S2,0.14279916815751809,0.20826587858112144,0.21066903352476568,False,0.2982,"seleksi tetap, hanya penilaian diganti",
+S3,0.20940589730624026,0.25835712972499353,0.23473564544766914,True,1.0,"seleksi tetap, hanya penilaian diganti",
+S4,0.08922141561799034,0.14650478687707413,0.18776683601164568,False,0.1684,"seleksi tetap, hanya penilaian diganti",
+S5,-0.07694236135723712,-0.13423852736829867,-0.15236898671659055,False,0.097,"seleksi tetap, hanya penilaian diganti",
+S3_ulang,,0.4114680416552465,0.409123678014105,True,0.754,S3 dioptimasi ulang dengan r implisit,Ya

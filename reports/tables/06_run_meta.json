@@ -1,0 +1,56 @@
+{
+  "random_seed": 42,
+  "preflight": {
+    "n_pred_default12m": 148369,
+    "n_pred_default12m_test": 54283,
+    "n_pred_return_ratio": 113560,
+    "p_calibrated_min": 0.0,
+    "p_calibrated_max": 0.8,
+    "p_calibrated_nan": 0,
+    "test_loandate_min": "2019-07-01",
+    "test_loandate_max": "2020-07-20"
+  },
+  "return_ratio_crosscheck": {
+    "n": 31175,
+    "max_abs_diff": 0.0
+  },
+  "interest_validation": {
+    "n_dibandingkan": 54283,
+    "korelasi": 0.9619124297478691,
+    "median_selisih_relatif": -0.02936737694632966,
+    "median_selisih_relatif_abs": 0.07864854970915426,
+    "p95_selisih_relatif_abs": 0.1864054391294642,
+    "share_dalam_5persen": 0.25315476300130796
+  },
+  "lgd": {
+    "L": 0.7310769888746118,
+    "n": 28585,
+    "ci_low": 0.7273624860556225,
+    "ci_high": 0.7347542197851408,
+    "recovery_mean": 0.2689230111253882,
+    "recovery_median": 0.09504130643611912,
+    "recovery_p10": 0.0,
+    "recovery_p90": 0.8456094090892942,
+    "share_zero_recovery": 0.11341612733951373
+  },
+  "opportunity_set": {
+    "n": 54283,
+    "default_rate_actual": 0.26770812224821766,
+    "p_mean": 0.32959043586264597,
+    "u_exante_mean": -0.037324206951513124,
+    "u_expost_mean": 0.023549189475454344,
+    "interest12_frac_mean": 0.333643715249326
+  },
+  "s3_solver": {
+    "status": "Optimal (relaksasi LP bersifat integral)",
+    "objective_sum_u": 1047.0294865312012,
+    "n_variables": 54283,
+    "pool_size": null,
+    "n_fractional": 0,
+    "all_constraints_ok": true,
+    "solver": "HiGHS via scipy.optimize.linprog/milp (LP dulu, lalu MILP sisa); pulp 4.x tidak menyertakan CBC",
+    "n_selected": 5000,
+    "conflicts": {}
+  },
+  "s3_share_of_opportunity_set": 0.09210986865132731
+}

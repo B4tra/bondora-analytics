@@ -70,6 +70,41 @@ DROPPED_COLUMNS: list[str] = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Tahap 5 (Prescriptive Analytics + Forecast) parameters.
+# All values are fixed BEFORE running the backtest; they must not be tuned on test outcomes.
+# ---------------------------------------------------------------------------
+TICKET_EUR: float = 50.0  # nominal funded per loan (investor funds a slice, not the whole loan)
+BUDGET_EUR: float = 250_000.0  # investor budget (about 5,000 loans)
+MAX_AVG_P: float = 0.20  # cap on portfolio mean calibrated default probability
+MAX_SHARE_COUNTRY: float = 0.70  # max exposure share per country
+MAX_SHARE_WORST_RATINGS: float = 0.25  # max exposure share on ratings F and HR
+WORST_RATINGS: tuple[str, ...] = ("F", "HR")
+MAX_SHARE_TENOR60: float = 0.70  # max exposure share on 60-month loans
+MIN_LOANS: int = 2_000  # minimum number of funded loans (diversification)
+PD_STRESS_GRID: tuple[float, ...] = (-0.20, 0.0, 0.20, 0.50)  # multiplicative shock on p
+LGD_SHIFT_GRID: tuple[float, ...] = (-0.10, 0.0, 0.10)  # additive shift on loss given default
+BUDGET_SCALE_GRID: tuple[float, ...] = (0.5, 1.0, 2.0)
+MAX_SHARE_COUNTRY_GRID: tuple[float, ...] = (0.5, 0.7, 1.0)
+MAX_AVG_P_GRID: tuple[float, ...] = (0.15, 0.20, 0.25, 0.30)
+N_RANDOM_DRAWS: int = 100  # draws averaged for the random baseline (S0)
+N_BOOTSTRAP: int = 200  # bootstrap iterations for ex-post profit CIs
+RATING_ORDER: tuple[str, ...] = ("AA", "A", "B", "C", "D", "E", "F", "HR")
+OPT_TIME_LIMIT_S: float = 180.0  # binary solve time limit before falling back to LP relaxation
+
+# Platform scenarios (exposure = full Amount of each approved loan)
+TAU_GRID: tuple[float, ...] = (0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50)
+PLATFORM_MIN_APPROVAL: float = 0.40  # service-level analogue: minimum approval rate
+PLATFORM_MAX_AVG_P: float = 0.25  # cap on mean p of approved loans
+INTEREST_RAISE_CAP_PP: float = 10.0  # illustrative scenario: max interest increase (pp) toward breakeven
+
+# Light forecast
+FORECAST_START: str = "2016-01"
+FORECAST_LAST_FULL_MONTH: str = "2021-06"  # July 2021 is partial (data ends 2021-07-20)
+FORECAST_HORIZON: int = 4  # Jul..Oct 2021; headline months are Aug-Oct 2021
+BACKTEST_MONTHS: int = 6  # rolling-origin evaluation on the last 6 full months
+
+
 def ensure_dirs() -> None:
     """Create all standard project directories if they do not already exist."""
     directories = [

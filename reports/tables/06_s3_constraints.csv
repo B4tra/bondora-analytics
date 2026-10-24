@@ -1,0 +1,9 @@
+kendala,lhs,batas_bawah,batas_atas,slack_normal,mengikat,terpenuhi
+anggaran: jumlah pinjaman = N,5000.0,5000.0,5000.0,0.0,True,True
+jumlah pinjaman >= MIN_LOANS,5000.0,2000.0,,0.6,False,True
+rata-rata p <= MAX_AVG_P,-104.69699781744887,,0.0,0.020939399563489777,False,True
+eksposur negara ES <= MAX_SHARE_COUNTRY,1081.0,,3500.0,0.4838,False,True
+eksposur negara EE <= MAX_SHARE_COUNTRY,3500.0,,3500.0,0.0,True,True
+eksposur negara FI <= MAX_SHARE_COUNTRY,419.0,,3500.0,0.6162,False,True
+eksposur rating F+HR <= MAX_SHARE_WORST_RATINGS,1147.0,,1250.0,0.0206,False,True
+eksposur tenor 60 bulan <= MAX_SHARE_TENOR60,2960.0,,3500.0,0.108,False,True

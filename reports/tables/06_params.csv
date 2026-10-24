@@ -1,0 +1,26 @@
+parameter,nilai,alasan
+TICKET_EUR,50.0,"Nominal yang didanai per pinjaman; investor mendanai porsi, bukan seluruh pinjaman."
+BUDGET_EUR,250000.0,Anggaran investor; setara sekitar 5.000 pinjaman pada tiket 50 EUR.
+N_PINJAMAN,5000,Jumlah pinjaman yang didanai = BUDGET_EUR / TICKET_EUR.
+MAX_AVG_P,0.2,Batas rata-rata p_calibrated portofolio (selera risiko investor).
+MAX_SHARE_COUNTRY,0.7,"Batas konsentrasi per negara (diversifikasi, bukan diskriminasi individu)."
+MAX_SHARE_WORST_RATINGS,0.25,Batas eksposur rating F dan HR (rating tersedia saat memilih).
+MAX_SHARE_TENOR60,0.7,Batas eksposur tenor 60 bulan (risiko jangka panjang).
+MIN_LOANS,2000,Jumlah pinjaman minimum untuk diversifikasi (analog service level pada slide).
+PD_STRESS_GRID,-20%; +0%; +20%; +50%,Pengali pada p untuk simulasi what-if.
+LGD_SHIFT_GRID,-0.10; +0.00; +0.10,Pergeseran kerugian saat default (pecahan pokok; -10/0/+10 poin).
+BUDGET_SCALE_GRID,0.5; 1.0; 2.0,Skala anggaran; MIN_LOANS disesuaikan proporsional.
+MAX_SHARE_COUNTRY_GRID,0.5; 0.7; 1.0,Menunjukkan biaya diversifikasi.
+MAX_AVG_P_GRID,0.15; 0.2; 0.25; 0.3,Sensitivitas terhadap selera risiko.
+N_RANDOM_DRAWS,100,Undian S0 yang dirata-ratakan.
+N_BOOTSTRAP,200,Iterasi bootstrap CI ex-post.
+RANDOM_SEED,42,Seed untuk semua proses acak.
+OPT_TIME_LIMIT_S,180.0,Batas waktu solusi biner sebelum relaksasi LP.
+TAU_GRID,0.10; 0.15; 0.20; 0.25; 0.30; 0.35; 0.40; 0.45; 0.50,Kandidat batas risiko persetujuan platform (p <= tau).
+PLATFORM_MIN_APPROVAL,0.4,Tingkat persetujuan minimum platform (analog service level).
+PLATFORM_MAX_AVG_P,0.25,Batas rata-rata p pinjaman disetujui.
+INTEREST_RAISE_CAP_PP,10.0,Skenario ilustratif harga: kenaikan bunga maksimum (poin) menuju impas.
+ASUMSI_bunga,"sederhana, tanpa reinvestasi","interest12_frac dari anuitas, horizon min(12, tenor) bulan."
+ASUMSI_biaya,tanpa biaya platform,Tidak ada biaya layanan/pajak; keuntungan kotor.
+ASUMSI_kerugian,konstan L,Kerugian saat default konstan; bunga sebelum default diabaikan (konservatif).
+ASUMSI_atribut_sensitif,Gender tidak dipakai,"Country hanya batas konsentrasi (diversifikasi), bukan alat diskriminasi."
