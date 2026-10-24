@@ -55,12 +55,22 @@ EXPECTED_CLS_ROWS = 148_369
 EXPECTED_TEST_ROWS = 54_283
 EXPECTED_REG_ROWS = 113_560
 
+REALISASI_12M_LABEL = "Realisasi 12 bulan (model ekonomi + default aktual)"
+REALISASI_12M_NOTE = (
+    "Bukan laba tunai; default setelah bulan ke-12 dan sisa pokok tidak dihitung; "
+    "59,2% portofolio S3 bertenor 60 bulan."
+)
+LEVEL_SENS_LABEL = "diagnostik sensitivitas; faktor skala memakai data uji sehingga bukan evaluasi model"
+FORECAST_NOTE = "ilustrasi metode; interval 80% mencakup 6 dari 6 bulan uji tahan sehingga cenderung lebar"
+
 STRATEGY_DESC: dict[str, str] = {
     "S0": "Acak (baseline), rata-rata 100 undian",
     "S1": "Ikuti rating Bondora (AA -> HR)",
     "S2": "Risiko terendah (p_calibrated terendah, tanpa batas konsentrasi)",
+    "S2c": "Risiko terendah berbatas (urut p terendah, greedy semua batasan S3)",
     "S3": "Optimasi berbatas (maksimalkan profit ex-ante di bawah semua batasan)",
     "S4": "Peringkat pengembalian (pred_return_ratio tertinggi)",
+    "S4c": "Peringkat pengembalian berbatas (urut pred_return_ratio tertinggi, greedy semua batasan S3)",
     "S5": "Imbal hasil tertinggi (Interest tertinggi; strategi naif)",
 }
 
@@ -192,12 +202,26 @@ def params_table() -> pd.DataFrame:
 
 
 def run_strategies(opp: pd.DataFrame, n_select: int, limits: dict[str, float]) -> dict[str, Any]:
-    """Build S0-S5, evaluate them and mark the recommendation (best ex-ante profit among compliant options)."""
+    """Build S0-S5 (plus constrained greedy baselines S2c and S4c), evaluate them and mark the recommendation."""
     selections: dict[str, np.ndarray] = {}
     t0 = time.perf_counter()
     draws = pr.select_random_draws(len(opp), n_select)
     selections["S1"] = pr.select_by_rating(opp["Rating"].to_numpy(), n_select)
     selections["S2"] = pr.select_lowest_p(opp["p"].to_numpy(), n_select)
+    selections["S2c"] = pr.select_constrained_greedy(
+        opp["p"].to_numpy(),
+        opp["p"].to_numpy(),
+        opp["Country"].astype(str).to_numpy(),
+        opp["Rating"].to_numpy(),
+        opp["LoanDuration"].to_numpy(),
+        n_select=n_select,
+        min_loans=limits["min_loans"],
+        max_avg_p=limits["max_avg_p"],
+        max_share_country=limits["max_share_country"],
+        max_share_worst=limits["max_share_worst"],
+        max_share_tenor60=limits["max_share_tenor60"],
+        ascending=True,
+    )
 
     opt = pr.optimize_portfolio(
         opp["p"].to_numpy(),
@@ -215,10 +239,24 @@ def run_strategies(opp: pd.DataFrame, n_select: int, limits: dict[str, float]) -
     opt["solve_seconds"] = round(time.perf_counter() - t0, 2)
     selections["S3"] = opt["selected"]
     selections["S4"] = pr.select_top_score(opp["pred_return_ratio"].to_numpy(), n_select)
+    selections["S4c"] = pr.select_constrained_greedy(
+        opp["pred_return_ratio"].to_numpy(),
+        opp["p"].to_numpy(),
+        opp["Country"].astype(str).to_numpy(),
+        opp["Rating"].to_numpy(),
+        opp["LoanDuration"].to_numpy(),
+        n_select=n_select,
+        min_loans=limits["min_loans"],
+        max_avg_p=limits["max_avg_p"],
+        max_share_country=limits["max_share_country"],
+        max_share_worst=limits["max_share_worst"],
+        max_share_tenor60=limits["max_share_tenor60"],
+        ascending=False,
+    )
     selections["S5"] = pr.select_top_score(opp["Interest"].to_numpy(), n_select)
 
     rows: list[dict[str, Any]] = []
-    for code in ["S0", "S1", "S2", "S3", "S4", "S5"]:
+    for code in ["S0", "S1", "S2", "S2c", "S3", "S4", "S4c", "S5"]:
         if code == "S0":
             m = pr.evaluate_random_baseline(draws, opp, ticket=TICKET_EUR, limits=limits)
         elif len(selections[code]) == 0:
@@ -233,6 +271,8 @@ def run_strategies(opp: pd.DataFrame, n_select: int, limits: dict[str, float]) -
         best = res.loc[ok, "profit_exante_eur"].idxmax()
         res.loc[best, "rekomendasi"] = True
     res["rekomendasi"] = res["rekomendasi"].map({True: "Ya", False: "Tidak"})
+    res["label_realisasi"] = REALISASI_12M_LABEL
+    res["catatan_realisasi"] = REALISASI_12M_NOTE
     return {"results": res, "selections": selections, "optimization": opt, "draws": draws}
 
 
@@ -274,7 +314,7 @@ def run_interest_robustness(
         ok, pr.interest12_frac(np.where(ok, r_impl, 0.0), alt["LoanDuration"]), alt["interest12_frac"]
     )
     alt = pr.add_unit_profits(alt, L)
-    sels = dict(strat["selections"])
+    sels = {k: strat["selections"][k] for k in ["S1", "S2", "S3", "S4", "S5"]}
     opt = pr.optimize_portfolio(
         alt["p"].to_numpy(),
         alt["u_exante"].to_numpy(),
@@ -433,8 +473,8 @@ def _scenario_rows(
     return df.to_dict("records")
 
 
-def run_whatif(opp: pd.DataFrame, L: float) -> pd.DataFrame:
-    """All Step-5 scenarios for S3 (recommended), S2 and S5."""
+def run_whatif(opp: pd.DataFrame, L: float, sel_s3: np.ndarray | None = None) -> pd.DataFrame:
+    """All Step-5 scenarios for S3 (recommended), S2 and S5, plus p multipliers x2.0 and x3.0 on portfolio S3."""
     rows: list[dict[str, Any]] = []
     for s in PD_STRESS_GRID:
         rows += _scenario_rows(opp, L, skenario="stres_p", nilai=f"{s:+.0%}", p_stress=s)
@@ -446,6 +486,34 @@ def run_whatif(opp: pd.DataFrame, L: float) -> pd.DataFrame:
         rows += _scenario_rows(opp, L, skenario="batas_negara", nilai=f"{c:.2f}", max_share_country=c)
     for a in MAX_AVG_P_GRID:
         rows += _scenario_rows(opp, L, skenario="batas_risiko", nilai=f"{a:.2f}", max_avg_p=a)
+    if sel_s3 is not None and len(sel_s3) > 0:
+        limits = base_limits()
+        for mult, label in ((2.0, "x2,0"), (3.0, "x3,0")):
+            sc = opp.copy()
+            sc["p"] = np.clip(sc["p"] * mult, 0.0, 1.0)
+            sc = pr.add_unit_profits(sc, L)
+            m = pr.evaluate_portfolio(sel_s3, sc, ticket=TICKET_EUR, limits=limits, n_boot=20)
+            rows.append(
+                {
+                    "skenario": "pengali_p_S3",
+                    "nilai_parameter": label,
+                    "opsi": "S3",
+                    "n_pinjaman": m["n_pinjaman"],
+                    "profit_exante_eur": m["profit_exante_eur"],
+                    "roi_exante": m["roi_exante"],
+                    "profit_expost_eur": m["profit_expost_eur"],
+                    "roi_expost": m["roi_expost"],
+                    "status_solver": "Portofolio S3 tetap (pengali p)",
+                    "memenuhi_batasan": m["memenuhi_batasan"],
+                    "opsi_terbaik": "S3",
+                    "p_rata2_exante": m["p_rata2_exante"],
+                    "share_country_maks": m["share_country_maks"],
+                    "catatan": (
+                        "Portofolio S3 tetap dievaluasi pada p_skala = clip(m * p, 0, 1); "
+                        "optimasi ulang pada m >= 2,0 tidak layak karena rata-rata p > MAX_AVG_P"
+                    ),
+                }
+            )
     cols = [
         "skenario",
         "nilai_parameter",
@@ -463,6 +531,45 @@ def run_whatif(opp: pd.DataFrame, L: float) -> pd.DataFrame:
         "catatan",
     ]
     return pd.DataFrame(rows)[cols]
+
+
+def run_breakeven_multiplier(opp: pd.DataFrame, L: float, sel_s3: np.ndarray) -> pd.DataFrame:
+    """Compute S3 breakeven p-multiplier via bisection and evaluate x1.0, breakeven, x2.0 and x3.0 on S3."""
+    sub = opp.iloc[sel_s3]
+    be = pr.find_breakeven_multiplier(sub["p"], sub["interest12_frac"], L)
+    m_star = be["pengali_impas"]
+    invest = float(len(sub) * TICKET_EUR)
+    profit_real = float(TICKET_EUR * sub["u_expost"].sum())
+    roi_real = profit_real / invest
+
+    rows: list[dict[str, Any]] = []
+    for label, mult, metode in [
+        ("x1,0 (dasar)", 1.0, "Portofolio S3 dasar"),
+        (f"x{m_star:.4f} (impas)", m_star, "Pencarian bagi dua (bisection): ROI ex-ante S3 = 0"),
+        ("x2,0", 2.0, "Skenario pengali p x2,0 pada portofolio S3 tetap"),
+        ("x3,0", 3.0, "Skenario pengali p x3,0 pada portofolio S3 tetap"),
+    ]:
+        p_sc = np.clip(sub["p"].to_numpy() * mult, 0.0, 1.0)
+        u_ex = pr.unit_profit(p_sc, sub["interest12_frac"].to_numpy(), L)
+        profit_ex = float(TICKET_EUR * u_ex.sum())
+        rows.append(
+            {
+                "opsi": "S3",
+                "skenario_pengali": label,
+                "pengali_p": float(mult),
+                "stres_p_pct": float((mult - 1.0) * 100.0),
+                "n_pinjaman": int(len(sub)),
+                "p_rata2_exante": float(p_sc.mean()),
+                "profit_exante_eur": profit_ex,
+                "roi_exante": profit_ex / invest,
+                "profit_realisasi_12m_eur": profit_real,
+                "roi_realisasi_12m": roi_real,
+                "pengali_impas_bisection": float(m_star),
+                "metode": metode,
+                "catatan_realisasi": REALISASI_12M_NOTE,
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 # --------------------------------------------------------------------------------------
@@ -568,6 +675,79 @@ def run_platform_pricing(opp: pd.DataFrame, L: float, seed: int = RANDOM_SEED) -
     return {"breakeven": breakeven_tab, "check": check, "scenario": pd.DataFrame(scen_rows)}
 
 
+def run_platform_level_sensitivity(opp: pd.DataFrame, L: float) -> pd.DataFrame:
+    """P1 and P2 sensitivity under unscaled p, global pool-mean scaling, and per-country scaling."""
+    d_mean = float(opp["default_12m"].mean())
+    p_mean = float(opp["p"].mean())
+    k_global = d_mean / p_mean
+
+    k_country: dict[str, float] = {}
+    for c_name, g in opp.groupby(opp["Country"].astype(str), observed=True):
+        k_country[str(c_name)] = float(g["default_12m"].mean() / g["p"].mean())
+
+    p_orig = opp["p"].to_numpy()
+    p_glob = np.clip(p_orig * k_global, 0.0, 1.0)
+    c_factors = opp["Country"].astype(str).map(k_country).to_numpy(dtype="float64")
+    p_cntry = np.clip(p_orig * c_factors, 0.0, 1.0)
+
+    versions = [
+        ("tanpa_skala", "Tanpa skala (p_calibrated asli)", p_orig, np.ones(len(opp), dtype="float64")),
+        (
+            "faktor_global",
+            "Skala faktor global (rata-rata pool = default 12m aktual 26,77%)",
+            p_glob,
+            np.full(len(opp), k_global, dtype="float64"),
+        ),
+        (
+            "faktor_per_negara",
+            "Skala faktor per negara (rata-rata tiap negara = default 12m aktual)",
+            p_cntry,
+            c_factors,
+        ),
+    ]
+
+    rows: list[dict[str, Any]] = []
+    for v_code, v_desc, p_vec, f_vec in versions:
+        alt = opp.copy()
+        alt["p"] = p_vec
+        alt["faktor_skala"] = f_vec
+        alt = pr.add_unit_profits(alt, L)
+
+        pol = run_platform_policy(alt, L)
+        rec = pol[pol["rekomendasi"] == "Ya"].iloc[0]
+        be_tab = run_platform_pricing(alt, L)["breakeven"]
+        be_sub = be_tab[be_tab["dimensi"].isin(["Semua", "Country"])].set_index("segmen")
+
+        for seg in ["Semua", "EE", "ES", "FI"]:
+            g = alt if seg == "Semua" else alt[alt["Country"].astype(str) == seg]
+            b_row = be_sub.loc[seg]
+            rows.append(
+                {
+                    "versi": v_code,
+                    "deskripsi_versi": v_desc,
+                    "segmen": seg,
+                    "n_pinjaman": int(len(g)),
+                    "faktor_skala_p": float(g["faktor_skala"].mean()),
+                    "p_rata2_segmen": float(g["p"].mean()),
+                    "default_rate_aktual_12m": float(g["default_12m"].mean()),
+                    "tau_optimal_exante": float(rec["tau"]),
+                    "tingkat_persetujuan_tau_opt": float(rec["tingkat_persetujuan"]),
+                    "p_rata2_disetujui_tau_opt": float(rec["p_rata2_disetujui"]),
+                    "default_rate_aktual_tau_opt": float(rec["default_rate_expost"]),
+                    "profit_exante_tau_opt_eur": float(rec["profit_exante_eur"]),
+                    "roi_exante_tau_opt": float(rec["roi_exante"]),
+                    "profit_realisasi_12m_tau_opt_eur": float(rec["profit_expost_eur"]),
+                    "roi_realisasi_12m_tau_opt": float(rec["roi_expost"]),
+                    "pct_di_bawah_impas": float(b_row["pct_di_bawah_impas"]),
+                    "interest_median": float(b_row["interest_median"]),
+                    "r_star_median": float(b_row["r_star_median"]),
+                    "selisih_median_pp": float(b_row["selisih_median_pp"]),
+                    "label": LEVEL_SENS_LABEL,
+                }
+            )
+    return pd.DataFrame(rows)
+
+
 # --------------------------------------------------------------------------------------
 # Figures
 # --------------------------------------------------------------------------------------
@@ -579,7 +759,7 @@ def plot_strategy_figures(res: pd.DataFrame) -> None:
     order = res["opsi"].tolist()
     x = np.arange(len(order))
     w = 0.38
-    fig, ax = plt.subplots(figsize=(10, 5.5))
+    fig, ax = plt.subplots(figsize=(11, 5.8))
     ax.bar(x - w / 2, res["roi_exante"] * 100, w, label="ROI ex-ante (berbasis model)", color="#4c72b0")
     err = np.vstack(
         [
@@ -587,17 +767,31 @@ def plot_strategy_figures(res: pd.DataFrame) -> None:
             (res["roi_expost_ci_high"] - res["roi_expost"]).to_numpy() * 100,
         ]
     )
-    ax.bar(x + w / 2, res["roi_expost"] * 100, w, yerr=err, capsize=4, label="ROI ex-post (hasil aktual, CI 95%)", color="#dd8452")
+    ax.bar(
+        x + w / 2,
+        res["roi_expost"] * 100,
+        w,
+        yerr=err,
+        capsize=4,
+        label=f"ROI {REALISASI_12M_LABEL} (CI 95%)",
+        color="#dd8452",
+    )
     ax.axhline(0, color="black", lw=0.8)
     ax.set_xticks(x)
     ax.set_xticklabels([f"{o}{'' if m else ' *'}" for o, m in zip(order, res["memenuhi_batasan"])])
     ax.set_ylabel("ROI 12 bulan (%)")
-    ax.set_title("Perbandingan ROI ex-ante vs ex-post per strategi investor")
+    ax.set_title(f"Perbandingan ROI ex-ante vs {REALISASI_12M_LABEL} per strategi investor")
     ax.legend()
-    ax.text(0.01, 0.02, "* melanggar minimal satu batasan (tidak boleh direkomendasikan)", transform=ax.transAxes, fontsize=8.5)
+    ax.text(
+        0.01,
+        0.02,
+        f"* melanggar minimal satu batasan (tidak boleh direkomendasikan) | Catatan: {REALISASI_12M_NOTE}",
+        transform=ax.transAxes,
+        fontsize=7.8,
+    )
     save_fig(fig, "06_strategy_comparison")
 
-    fig, ax = plt.subplots(figsize=(8.5, 6))
+    fig, ax = plt.subplots(figsize=(9, 6))
     for _, r in res.iterrows():
         filled = bool(r["memenuhi_batasan"])
         ax.scatter(
@@ -611,8 +805,9 @@ def plot_strategy_figures(res: pd.DataFrame) -> None:
         ax.annotate(r["opsi"], (r["default_rate_expost"] * 100, r["roi_expost"] * 100), xytext=(7, 6), textcoords="offset points")
     ax.axhline(0, color="black", lw=0.8)
     ax.set_xlabel("Tingkat default 12 bulan aktual (%)")
-    ax.set_ylabel("ROI ex-post (%)")
-    ax.set_title("Risiko vs imbal hasil per strategi (penuh = memenuhi batasan)")
+    ax.set_ylabel(f"ROI {REALISASI_12M_LABEL} (%)")
+    ax.set_title(f"Risiko vs imbal hasil ({REALISASI_12M_LABEL}; penuh = memenuhi batasan)")
+    ax.text(0.01, 0.02, f"Catatan: {REALISASI_12M_NOTE}", transform=ax.transAxes, fontsize=7.8)
     save_fig(fig, "06_strategy_risk_return")
 
 
@@ -667,9 +862,15 @@ def plot_tornado(whatif: pd.DataFrame) -> pd.DataFrame:
 def plot_platform_curve(pol: pd.DataFrame) -> None:
     """06_platform_threshold_curve.png."""
     set_style()
-    fig, ax1 = plt.subplots(figsize=(10, 5.5))
+    fig, ax1 = plt.subplots(figsize=(10.5, 5.8))
     ax1.plot(pol["tau"], pol["profit_exante_eur"] / 1e6, "o-", color="#4c72b0", label="Profit ex-ante (juta EUR)")
-    ax1.plot(pol["tau"], pol["profit_expost_eur"] / 1e6, "s--", color="#dd8452", label="Profit ex-post (juta EUR)")
+    ax1.plot(
+        pol["tau"],
+        pol["profit_expost_eur"] / 1e6,
+        "s--",
+        color="#dd8452",
+        label=f"Profit {REALISASI_12M_LABEL} (juta EUR)",
+    )
     ax1.set_xlabel("Batas risiko persetujuan tau (p <= tau)")
     ax1.set_ylabel("Profit 12 bulan (juta EUR)")
     ax1.axhline(0, color="black", lw=0.8)
@@ -684,41 +885,73 @@ def plot_platform_curve(pol: pd.DataFrame) -> None:
         ax1.text(float(rec["tau"].iloc[0]), ax1.get_ylim()[1] * 0.92, " tau terpilih", color="#c44e52")
     h1, l1 = ax1.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
-    ax1.legend(h1 + h2, l1 + l2, loc="center left")
+    ax1.legend(h1 + h2, l1 + l2, loc="center left", fontsize=8.5)
     ax1.set_title("Kebijakan persetujuan platform: profit dan tingkat persetujuan vs tau")
+    ax1.text(0.01, 0.02, f"Catatan: {REALISASI_12M_NOTE}", transform=ax1.transAxes, fontsize=7.8)
     save_fig(fig, "06_platform_threshold_curve")
 
 
-def _plot_series(ax: plt.Axes, y: pd.Series, f: pd.DataFrame, title: str, ylabel: str) -> None:
-    ax.plot(y.index, y.values, color="#4c72b0", label="Riwayat (bulan penuh)")
-    ax.plot(f["month"], f["mean"], "o-", color="#dd8452", label=f"Prakiraan ({f['model'].iloc[0]})")
-    ax.fill_between(f["month"], f["lo95"], f["hi95"], color="#dd8452", alpha=0.18, label="Interval 95%")
-    ax.fill_between(f["month"], f["lo80"], f["hi80"], color="#dd8452", alpha=0.35, label="Interval 80%")
-    ax.set_title(title)
-    ax.set_ylabel(ylabel)
+def _plot_series(
+    ax_full: plt.Axes, ax_zoom: plt.Axes, y: pd.Series, f: pd.DataFrame, title: str, ylabel: str
+) -> None:
+    model_name = f["model"].iloc[0]
+    y_last12 = y.iloc[-12:]
+    ax_full.plot(y.index, y.values, color="#4c72b0", alpha=0.65, label="Riwayat penuh (2016-01..2021-06)")
+    ax_full.plot(y_last12.index, y_last12.values, "s-", color="#1f4e78", markersize=3.5, label="12 bulan terakhir aktual")
+    ax_full.plot(f["month"], f["mean"], "o-", color="#dd8452", label=f"Prakiraan ({model_name})")
+    ax_full.fill_between(f["month"], f["lo95"], f["hi95"], color="#dd8452", alpha=0.18, label="Interval 95%")
+    ax_full.fill_between(f["month"], f["lo80"], f["hi80"], color="#dd8452", alpha=0.35, label="Interval 80%")
+    ax_full.set_title(f"{title}\n(Riwayat penuh & prakiraan)", fontsize=10.5)
+    ax_full.set_ylabel(ylabel)
+
+    ax_zoom.plot(
+        y_last12.index, y_last12.values, "s-", color="#1f4e78", lw=1.8, label="12 bulan terakhir aktual (2020-07..2021-06)"
+    )
+    ax_zoom.plot(
+        [y_last12.index[-1], f["month"].iloc[0]],
+        [float(y_last12.iloc[-1]), float(f["mean"].iloc[0])],
+        "--",
+        color="#dd8452",
+        lw=1.2,
+    )
+    ax_zoom.plot(f["month"], f["mean"], "o-", color="#dd8452", lw=1.8, label=f"Prakiraan ({model_name}, Jul–Okt 2021)")
+    ax_zoom.fill_between(f["month"], f["lo95"], f["hi95"], color="#dd8452", alpha=0.18, label="Interval 95%")
+    ax_zoom.fill_between(f["month"], f["lo80"], f["hi80"], color="#dd8452", alpha=0.35, label="Interval 80%")
+    ax_zoom.set_title(f"{title}\n(12 bulan terakhir aktual & prakiraan)", fontsize=10.5)
+    ax_zoom.set_ylabel(ylabel)
+    ax_zoom.tick_params(axis="x", rotation=25)
 
 
 def plot_forecasts(series: pd.DataFrame, forecast: pd.DataFrame) -> None:
     """06_forecast_volume.png and 06_forecast_defaults.png."""
     set_style()
-    fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
-    for ax, col, title, yl in [
-        (axes[0], "n_loans", "Prakiraan jumlah pinjaman baru per bulan", "Jumlah pinjaman"),
-        (axes[1], "amount_loans", "Prakiraan total Amount pinjaman baru per bulan", "EUR"),
-    ]:
-        _plot_series(ax, series[col], forecast[forecast["serie"] == col], title, yl)
-    axes[0].legend(loc="upper left", fontsize=8.5)
+    fig, axes = plt.subplots(2, 2, figsize=(14.5, 9.5))
+    for row_idx, (col, title, yl) in enumerate(
+        [
+            ("n_loans", "Jumlah pinjaman baru per bulan", "Jumlah pinjaman"),
+            ("amount_loans", "Total Amount pinjaman baru per bulan", "EUR"),
+        ]
+    ):
+        _plot_series(axes[row_idx, 0], axes[row_idx, 1], series[col], forecast[forecast["serie"] == col], title, yl)
+    axes[0, 0].legend(loc="upper left", fontsize=8)
+    axes[0, 1].legend(loc="upper left", fontsize=8)
+    fig.subplots_adjust(hspace=0.42, wspace=0.22, bottom=0.10)
+    fig.text(0.01, 0.01, f"Catatan: {FORECAST_NOTE}.", fontsize=8.5)
     save_fig(fig, "06_forecast_volume")
 
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, axes_d = plt.subplots(1, 2, figsize=(14.5, 5.4))
     _plot_series(
-        ax,
+        axes_d[0],
+        axes_d[1],
         series["amount_default"],
         forecast[forecast["serie"] == "amount_default"],
-        "Prakiraan arus default baru (total Amount menurut bulan DefaultDate)",
+        "Arus default baru (Amount menurut bulan DefaultDate)",
         "EUR",
     )
-    ax.legend(loc="upper left", fontsize=8.5)
+    axes_d[0].legend(loc="upper left", fontsize=8)
+    axes_d[1].legend(loc="upper right", fontsize=8)
+    fig.subplots_adjust(wspace=0.22, bottom=0.16)
+    fig.text(0.01, 0.01, f"Catatan: {FORECAST_NOTE}.", fontsize=8.5)
     save_fig(fig, "06_forecast_defaults")
 
 
@@ -816,6 +1049,10 @@ def main() -> dict[str, Any]:
     opt = strat["optimization"]
     rep = opt["constraint_report"]
     rep.to_csv(TABLES_DIR / "06_s3_constraints.csv", index=False)
+    # Deterministic export of S3 LoanIds for Tahap 6 (Semantic Analytics)
+    opp.iloc[strat["selections"]["S3"]][["LoanId"]].reset_index(drop=True).to_parquet(
+        DATA_PROCESSED / "s3_selected_loans.parquet", index=False
+    )
     meta["s3_solver"] = {
         "status": opt["status"],
         "objective_sum_u": opt["objective"],
@@ -838,8 +1075,11 @@ def main() -> dict[str, Any]:
 
     # Step 5
     print("[What-if] running scenarios...")
-    whatif = run_whatif(opp, L)
+    sel_s3 = strat["selections"]["S3"]
+    whatif = run_whatif(opp, L, sel_s3)
     whatif.to_csv(TABLES_DIR / "06_whatif_scenarios.csv", index=False)
+    be_mult = run_breakeven_multiplier(opp, L, sel_s3)
+    be_mult.to_csv(TABLES_DIR / "06_breakeven_multiplier.csv", index=False)
     tornado = plot_tornado(whatif)
     tornado.to_csv(TABLES_DIR / "06_whatif_tornado.csv", index=False)
 
@@ -851,6 +1091,8 @@ def main() -> dict[str, Any]:
     pricing["breakeven"].to_csv(TABLES_DIR / "06_platform_breakeven_pricing.csv", index=False)
     pricing["check"].to_csv(TABLES_DIR / "06_platform_breakeven_check.csv", index=False)
     pricing["scenario"].to_csv(TABLES_DIR / "06_platform_pricing_scenario.csv", index=False)
+    level_sens = run_platform_level_sensitivity(opp, L)
+    level_sens.to_csv(TABLES_DIR / "06_platform_level_sensitivity.csv", index=False)
 
     # Step 7
     s3_share = float(len(opt["selected"]) / len(opp))
@@ -865,7 +1107,16 @@ def main() -> dict[str, Any]:
     with open(MODELS_DIR / "prescriptive_timing.json", "w", encoding="utf-8") as f:
         json.dump({"total_elapsed_seconds": elapsed}, f)
     print(f"=== Pipeline finished in {elapsed:.2f}s ===")
-    return {"meta": meta, "strategy": res, "whatif": whatif, "policy": pol, "pricing": pricing, "forecast": fcast}
+    return {
+        "meta": meta,
+        "strategy": res,
+        "whatif": whatif,
+        "breakeven_multiplier": be_mult,
+        "policy": pol,
+        "pricing": pricing,
+        "level_sensitivity": level_sens,
+        "forecast": fcast,
+    }
 
 
 if __name__ == "__main__":

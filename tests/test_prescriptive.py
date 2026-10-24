@@ -238,6 +238,51 @@ def test_s1_selects_best_ratings() -> None:
     assert sorted(pr.select_by_rating(rating, 2).tolist()) == [1, 3]
 
 
+def test_constrained_greedy_satisfies_all_constraints_s2c_and_s4c() -> None:
+    opp = _toy_opp(400, seed=11)
+    opp["pred_return_ratio"] = opp["u_exante"] + 0.05 * np.random.default_rng(11).normal(size=len(opp))
+    for score, asc in (
+        (opp["p"].to_numpy(), True),
+        (opp["pred_return_ratio"].to_numpy(), False),
+    ):
+        sel = pr.select_constrained_greedy(
+            score,
+            opp["p"].to_numpy(),
+            opp["Country"].to_numpy(),
+            opp["Rating"].to_numpy(),
+            opp["LoanDuration"].to_numpy(),
+            n_select=60,
+            min_loans=int(LIMITS["min_loans"]),
+            max_avg_p=LIMITS["max_avg_p"],
+            max_share_country=LIMITS["max_share_country"],
+            max_share_worst=LIMITS["max_share_worst"],
+            max_share_tenor60=LIMITS["max_share_tenor60"],
+            ascending=asc,
+        )
+        assert len(sel) == 60
+        comp = pr.portfolio_composition(sel, opp)
+        flags = pr.constraint_flags(
+            comp,
+            min_loans=LIMITS["min_loans"],
+            max_avg_p=LIMITS["max_avg_p"],
+            max_share_country=LIMITS["max_share_country"],
+            max_share_worst=LIMITS["max_share_worst"],
+            max_share_tenor60=LIMITS["max_share_tenor60"],
+        )
+        assert all(flags.values())
+
+
+def test_find_breakeven_multiplier_bisection() -> None:
+    p = np.array([0.10, 0.15, 0.20, 0.25])
+    f = np.array([0.20, 0.22, 0.25, 0.28])
+    L = 0.60
+    res = pr.find_breakeven_multiplier(p, f, L)
+    assert res["pengali_impas"] > 1.0
+    assert abs(res["roi_exante_pada_impas"]) < 1e-9
+    p_be = np.clip(res["pengali_impas"] * p, 0.0, 1.0)
+    assert pr.unit_profit(p_be, f, L).mean() == pytest.approx(0.0, abs=1e-9)
+
+
 def test_evaluate_portfolio_matches_manual() -> None:
     opp = _toy_opp(50)
     sel = np.arange(10)

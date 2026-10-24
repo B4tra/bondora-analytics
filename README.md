@@ -160,7 +160,7 @@ Opsi tambahan:
 > **Catatan Git:** Folder `models/` (`*.joblib`, `train_metadata.json`, `prescriptive_timing.json`) dan berkas prediksi `data/processed/predictions_default12m.parquet` serta `data/processed/predictions_return_ratio.parquet` **tidak di-commit ke Git** (diabaikan melalui `.gitignore`) dan dihasilkan secara deterministik melalui `python -m src.models.train`.
 
 ### c. Analisis Preskriptif & Forecast Satu Perintah (Tahap 5)
-Untuk menjalankan seluruh pipeline Tahap 5 (penetapan parameter bisnis → fungsi ekonomi & estimasi $L$ pada data latih+validasi → evaluasi 6 strategi investor `S0`–`S5` & optimasi berbatas `S3` → simulasi *what-if* & sensitivitas tornado → skenario kebijakan platform `P1`/`P2` → prakiraan deret waktu bulanan *seasonal naive* vs ETS, serta penyimpanan tabel `reports/tables/06_*.csv` dan grafik `reports/figures/06_*.png`), jalankan:
+Untuk menjalankan seluruh pipeline Tahap 5 (penetapan parameter bisnis → fungsi ekonomi & estimasi $L$ pada data latih+validasi → evaluasi 8 strategi investor `S0`–`S5` termasuk pembanding berbatas serakah `S2c` & `S4c` serta optimasi berbatas `S3` → simulasi *what-if*, pengali $p$ `x2,0`/`x3,0`, pengali impas *bisection*, & sensitivitas tornado → skenario kebijakan platform `P1`/`P2` beserta diagnostik sensitivitas level $p$ → prakiraan deret waktu bulanan *seasonal naive* vs ETS, serta penyimpanan tabel `reports/tables/06_*.csv` dan grafik `reports/figures/06_*.png`), jalankan:
 
 ```bash
 python -m src.analysis.prescriptive_run
@@ -324,7 +324,9 @@ Untuk mengatasi bias seleksi waktu pengamatan (*right-censoring*) pada pinjaman 
 
 ## 9. Daftar Tabel dan Grafik Tahap 5 (Prescriptive Analytics + Forecast)
 
-### a. Tabel Ringkasan (`reports/tables/06_*.csv` & `06_run_meta.json` — 20 Berkas)
+> **Catatan tetap Realisasi 12 bulan (model ekonomi + default aktual):** Bukan laba tunai; default setelah bulan ke-12 dan sisa pokok tidak dihitung; 59,2% portofolio S3 bertenor 60 bulan.
+
+### a. Tabel Ringkasan (`reports/tables/06_*.csv` & `06_run_meta.json` — 22 Berkas)
 
 | Nama File | Deskripsi Satu Baris |
 | :--- | :--- |
@@ -332,16 +334,18 @@ Untuk mengatasi bias seleksi waktu pengamatan (*right-censoring*) pada pinjaman 
 | `reports/tables/06_interest_validation.csv` | Ringkasan validasi rumus cicilan anuitas `PMT * Amount` terhadap kolom `MonthlyPayment` aktual pada himpunan peluang uji (`n = 54.283`, korelasi `0,9619`, median selisih relatif absolut `7,86%`). |
 | `reports/tables/06_interest_validation_segments.csv` | Rincian median `Interest`, bunga tahunan implisit dari `MonthlyPayment`, dan selisih relatif `PMT` menurut `Country` dan `Rating`. |
 | `reports/tables/06_lgd_estimate.csv` | Estimasi kerugian saat gagal bayar $L = 1 - \text{mean}(\text{PrincipalPaymentsMade}/\text{Amount}) = 0,7311$ (CI bootstrap 95% `[0,7274, 0,7348]`) murni dari pinjaman `default_12m == 1` pada split latih dan validasi (`n = 28.585`). |
-| `reports/tables/06_strategy_results.csv` | Evaluasi lengkap 6 strategi investor (`S0`–`S5`) pada himpunan peluang uji (`N = 5.000`, `250.000 EUR`): rata-rata $p$ *ex-ante*, default rate *ex-post* + CI Wilson 95%, profit & ROI *ex-ante* vs *ex-post* + CI bootstrap 95%, konsentrasi, kepatuhan batasan, dan rekomendasi (`S3`). |
+| `reports/tables/06_strategy_results.csv` | Evaluasi lengkap 8 strategi investor (`S0`, `S1`, `S2`, `S2c`, `S3`, `S4`, `S4c`, `S5`) pada himpunan peluang uji (`N = 5.000`, `250.000 EUR`): rata-rata $p$ *ex-ante*, tingkat default 12 bulan aktual + CI Wilson 95%, profit & ROI *ex-ante* vs Realisasi 12 bulan (model ekonomi + default aktual) + CI bootstrap 95%, konsentrasi, kepatuhan batasan, dan rekomendasi (`S3`, mengungguli pembanding patuh `S2c` dan `S4c`). |
 | `reports/tables/06_s3_constraints.csv` | Laporan nilai sisi kiri (LHS), batas bawah/atas, *slack* ternormalisasi, dan status mengikat (*binding*) untuk seluruh kendala optimasi portofolio `S3`. |
 | `reports/tables/06_s3_composition.csv` | Komposisi portofolio terpilih `S3` dibanding himpunan peluang uji menurut `Country`, `Rating`, dan kelompok tenor beserta rata-rata $p$ dan default rate aktual per segmen. |
 | `reports/tables/06_interest_robustness.csv` | Uji ketahanan (*robustness check*) evaluasi strategi `S1`–`S5` dan optimasi ulang `S3_ulang` menggunakan pendapatan bunga dari suku bunga implisit `MonthlyPayment`. |
-| `reports/tables/06_whatif_scenarios.csv` | Hasil simulasi *what-if* (`17` skenario $\times$ `3` strategi `S3`, `S2`, `S5` = `51` baris) lintas stres probabilitas `p`, pergeseran `L`, skala anggaran, batas negara, dan batas rata-rata risiko. |
+| `reports/tables/06_whatif_scenarios.csv` | Hasil simulasi *what-if* (`17` skenario $\times$ `3` strategi `S3`, `S2`, `S5` ditambah `2` skenario pengali $p$ `x2,0` dan `x3,0` pada portofolio `S3` = `53` baris) lintas stres probabilitas `p`, pergeseran `L`, skala anggaran, batas negara, dan batas rata-rata risiko. |
+| `reports/tables/06_breakeven_multiplier.csv` | Hasil pencarian bagi dua (*bisection search*) pengali impas (*breakeven multiplier* `m* = 1,9454`, `+94,54%`) yang membuat ROI *ex-ante* portofolio `S3` = `0`, beserta perbandingan terhadap skenario `x1,0`, `x2,0` (`ROI ex-ante -1,21%`), dan `x3,0` (`ROI ex-ante -18,64%`). |
 | `reports/tables/06_whatif_tornado.csv` | Ringkasan rentang perubahan ROI *ex-ante* `S3` (poin persentase terhadap baseline `20,94%`) untuk nilai rendah dan tinggi tiap parameter sensitivitas. |
-| `reports/tables/06_platform_threshold_policy.csv` | Evaluasi kebijakan persetujuan platform (`P1`, $p_{\text{calibrated}} \le \tau$ untuk $\tau \in \{0,10 \dots 0,50\}$): tingkat persetujuan, rata-rata $p$, default rate aktual, total pokok, profit/ROI *ex-ante* & *ex-post*, dan rekomendasi ($\tau = 0,25$). |
+| `reports/tables/06_platform_threshold_policy.csv` | Evaluasi kebijakan persetujuan platform (`P1`, $p_{\text{calibrated}} \le \tau$ untuk $\tau \in \{0,10 \dots 0,50\}$): tingkat persetujuan, rata-rata $p$, default rate aktual, total pokok, profit/ROI *ex-ante* & Realisasi 12 bulan (model ekonomi + default aktual), dan rekomendasi ($\tau = 0,25$). |
 | `reports/tables/06_platform_breakeven_pricing.csv` | Persentase pinjaman dengan suku bunga di bawah impas (`Interest < r*`) beserta median `Interest`, median `r*`, dan selisih poin persentase menurut `Semua`, `Country`, `Rating`, dan `Tenor` (`P2`). |
 | `reports/tables/06_platform_breakeven_check.csv` | Verifikasi akurasi pendekatan linear bunga impas $r^*$ pada `1.000` pinjaman acak dengan menghitung ulang `interest12_frac` eksak pada $r^*$. |
 | `reports/tables/06_platform_pricing_scenario.csv` | Simulasi ilustratif kenaikan suku bunga (dibatasi maks. `+10 pp` menuju $r^*$) pada pinjaman di bawah impas menurut kelas `Rating` (dengan peringatan pengabaian elastisitas permintaan & *adverse selection*). |
+| `reports/tables/06_platform_level_sensitivity.csv` | Diagnostik sensitivitas level probabilitas untuk `P1` ($\tau$ optimal *ex-ante*) dan `P2` (persentase `Interest < r*` menurut `Country`: `Semua`, `EE`, `ES`, `FI`) pada tiga versi (`tanpa_skala`, `faktor_global` rata-rata pool `26,77%`, dan `faktor_per_negara`), berlabel `"diagnostik sensitivitas; faktor skala memakai data uji sehingga bukan evaluasi model"`. |
 | `reports/tables/06_forecast_series.csv` | Deret waktu bulanan penuh (`2016-01` s.d. `2021-06`, `66` bulan) untuk jumlah pinjaman baru (`n_loans`), total nominal pinjaman baru (`amount_loans`), dan arus default baru (`amount_default`). |
 | `reports/tables/06_forecast_backtest.csv` | Metrik evaluasi *rolling-origin* 1-langkah pada 6 bulan terakhir (`Jan–Jun 2021`): MAPE, sMAPE, cakupan interval 80% & 95%, dan model terpilih (`ETS` vs `seasonal_naive`). |
 | `reports/tables/06_forecast_backtest_detail.csv` | Rincian nilai aktual vs prediksi titik dan interval 80%/95% per bulan pada periode *backtest* `Jan–Jun 2021` untuk kedua model. |
@@ -353,12 +357,12 @@ Untuk mengatasi bias seleksi waktu pengamatan (*right-censoring*) pada pinjaman 
 
 | Nama File | Deskripsi Satu Baris |
 | :--- | :--- |
-| `reports/figures/06_strategy_comparison.png` | Grafik batang perbandingan ROI 12 bulan *ex-ante* vs *ex-post* (dengan CI bootstrap 95%) untuk keenam strategi investor (`S0`–`S5`). |
-| `reports/figures/06_strategy_risk_return.png` | Diagram pencar (*risk-return*) tingkat default 12 bulan aktual vs ROI *ex-post* per strategi (strategi patuh batasan ditandai titik penuh). |
+| `reports/figures/06_strategy_comparison.png` | Grafik batang perbandingan ROI 12 bulan *ex-ante* vs Realisasi 12 bulan (model ekonomi + default aktual) (dengan CI bootstrap 95%) untuk kedelapan strategi investor (`S0`–`S5`, termasuk `S2c` & `S4c`). |
+| `reports/figures/06_strategy_risk_return.png` | Diagram pencar (*risk-return*) tingkat default 12 bulan aktual vs ROI Realisasi 12 bulan (model ekonomi + default aktual) per strategi (strategi patuh batasan ditandai titik penuh). |
 | `reports/figures/06_whatif_tornado.png` | Diagram tornado sensitivitas perubahan ROI *ex-ante* strategi `S3` terhadap variasi stres $p$, anggaran, batas negara, pergeseran $L$, dan batas rata-rata risiko. |
-| `reports/figures/06_platform_threshold_curve.png` | Kurva profit 12 bulan (*ex-ante* & *ex-post*, juta EUR) dan tingkat persetujuan (%) terhadap ambang risiko persetujuan platform $\tau$ beserta penanda rekomendasi $\tau = 0,25$. |
-| `reports/figures/06_forecast_volume.png` | Grafik riwayat (`2016-01..2021-06`), prakiraan ETS (`Jul–Okt 2021`), dan pita interval prediksi 80%/95% untuk jumlah pinjaman baru dan total `Amount` bulanan. |
-| `reports/figures/06_forecast_defaults.png` | Grafik riwayat, prakiraan ETS, dan pita interval prediksi 80%/95% untuk arus default baru bulanan (`Amount` menurut bulan `DefaultDate`). |
+| `reports/figures/06_platform_threshold_curve.png` | Kurva profit 12 bulan (*ex-ante* & Realisasi 12 bulan (model ekonomi + default aktual), juta EUR) dan tingkat persetujuan (%) terhadap ambang risiko persetujuan platform $\tau$ beserta penanda rekomendasi $\tau = 0,25$. |
+| `reports/figures/06_forecast_volume.png` | Grafik riwayat (`2016-01..2021-06`), 12 bulan terakhir aktual bersanding dengan prakiraan ETS (`Jul–Okt 2021`), dan pita interval prediksi 80%/95% untuk jumlah pinjaman baru dan total `Amount` bulanan (catatan: *ilustrasi metode; interval 80% mencakup 6 dari 6 bulan uji tahan sehingga cenderung lebar*). |
+| `reports/figures/06_forecast_defaults.png` | Grafik riwayat, 12 bulan terakhir aktual bersanding dengan prakiraan ETS, dan pita interval prediksi 80%/95% untuk arus default baru bulanan (`Amount` menurut bulan `DefaultDate`; catatan: *ilustrasi metode; interval 80% mencakup 6 dari 6 bulan uji tahan sehingga cenderung lebar*). |
 
 ### c. Usulan Pilihan (10 Tabel & Grafik) untuk Deck Laporan (PPT) — Tahap 5
 - **4 Tabel:** `06_params.csv`, `06_strategy_results.csv`, `06_s3_composition.csv`, `06_platform_threshold_policy.csv`.

@@ -550,6 +550,141 @@ def select_top_score(score: np.ndarray, n_select: int, seed: int = RANDOM_SEED) 
     return _rank_select(np.asarray(score, dtype="float64"), n_select, rng, ascending=False)
 
 
+def select_constrained_greedy(
+    score: np.ndarray,
+    p: np.ndarray,
+    country: np.ndarray,
+    rating: np.ndarray,
+    duration: np.ndarray,
+    *,
+    n_select: int,
+    min_loans: int,
+    max_avg_p: float,
+    max_share_country: float,
+    max_share_worst: float,
+    max_share_tenor60: float,
+    ascending: bool,
+    seed: int = RANDOM_SEED,
+) -> np.ndarray:
+    """Greedy constrained selection (S2c / S4c) respecting all S3 portfolio constraints.
+
+    Candidates are scanned in score order (with seeded random tie-breaking, matching ``_rank_select``).
+    First, ``n_select`` loans are filled greedily while enforcing the per-country, rating F+HR and
+    60-month tenor exposure caps. If the resulting portfolio exceeds ``max_avg_p``, remaining candidates
+    in the same greedy order with lower ``p`` replace the highest-``p`` selected loans (preserving all
+    exposure caps) until ``mean(p) <= max_avg_p``.
+    """
+    score_arr = np.asarray(score, dtype="float64")
+    p_arr = np.asarray(p, dtype="float64")
+    c_arr = np.asarray(country, dtype=str)
+    w_arr = np.isin(np.asarray(rating, dtype=object), list(WORST_RATINGS))
+    t_arr = np.asarray(duration) == 60
+
+    rng = np.random.default_rng(seed)
+    tie = rng.random(len(score_arr))
+    key = score_arr if ascending else -score_arr
+    order = np.lexsort((tie, key))
+
+    c_cap = int(np.floor(max_share_country * n_select + 1e-9))
+    w_cap = int(np.floor(max_share_worst * n_select + 1e-9))
+    t_cap = int(np.floor(max_share_tenor60 * n_select + 1e-9))
+    p_cap = float(max_avg_p * n_select)
+
+    sel: list[int] = []
+    c_cnt: dict[str, int] = {}
+    w_cnt = 0
+    t_cnt = 0
+    p_sum = 0.0
+
+    for idx_np in order:
+        idx = int(idx_np)
+        ci = c_arr[idx]
+        cc = c_cnt.get(ci, 0)
+        if len(sel) < n_select:
+            if cc + 1 > c_cap:
+                continue
+            if w_arr[idx] and w_cnt + 1 > w_cap:
+                continue
+            if t_arr[idx] and t_cnt + 1 > t_cap:
+                continue
+            sel.append(idx)
+            c_cnt[ci] = cc + 1
+            if w_arr[idx]:
+                w_cnt += 1
+            if t_arr[idx]:
+                t_cnt += 1
+            p_sum += float(p_arr[idx])
+        else:
+            if p_sum <= p_cap + 1e-9:
+                break
+            pi = float(p_arr[idx])
+            best_pos = -1
+            best_p = pi
+            for pos, s_idx in enumerate(sel):
+                ps = float(p_arr[s_idx])
+                if ps <= best_p:
+                    continue
+                if c_arr[s_idx] != ci and cc + 1 > c_cap:
+                    continue
+                if w_arr[idx] and not w_arr[s_idx] and w_cnt + 1 > w_cap:
+                    continue
+                if t_arr[idx] and not t_arr[s_idx] and t_cnt + 1 > t_cap:
+                    continue
+                best_p = ps
+                best_pos = pos
+            if best_pos >= 0:
+                old = sel[best_pos]
+                sel[best_pos] = idx
+                c_cnt[c_arr[old]] -= 1
+                c_cnt[ci] = c_cnt.get(ci, 0) + 1
+                w_cnt += int(w_arr[idx]) - int(w_arr[old])
+                t_cnt += int(t_arr[idx]) - int(t_arr[old])
+                p_sum += pi - float(p_arr[old])
+
+    if len(sel) < min_loans or p_sum > p_cap + 1e-6:
+        return np.array([], dtype=int)
+    return np.sort(np.asarray(sel, dtype=int))
+
+
+def find_breakeven_multiplier(
+    p: Sequence[float] | np.ndarray | pd.Series,
+    interest12: Sequence[float] | np.ndarray | pd.Series,
+    loss_given_default: float,
+    *,
+    lo: float = 0.0,
+    hi: float = 10.0,
+    n_iter: int = 80,
+) -> dict[str, float]:
+    """Bisection search for the multiplier ``m`` on ``p`` (with ``clip(m * p, 0, 1)``) that makes ex-ante ROI = 0."""
+    p_arr = np.asarray(p, dtype="float64")
+    f_arr = np.asarray(interest12, dtype="float64")
+    L = float(loss_given_default)
+
+    def _roi(m: float) -> float:
+        p_scaled = np.clip(p_arr * m, 0.0, 1.0)
+        return float(unit_profit(p_scaled, f_arr, L).mean())
+
+    a, b = float(lo), float(hi)
+    while _roi(b) > 0.0 and b < 1e6:
+        b *= 2.0
+    for _ in range(n_iter):
+        mid = 0.5 * (a + b)
+        if _roi(mid) > 0.0:
+            a = mid
+        else:
+            b = mid
+    m_star = 0.5 * (a + b)
+    p_star = np.clip(p_arr * m_star, 0.0, 1.0)
+    return {
+        "pengali_impas": float(m_star),
+        "stres_impas_pct": float((m_star - 1.0) * 100.0),
+        "p_rata2_awal": float(p_arr.mean()),
+        "p_rata2_impas": float(p_star.mean()),
+        "roi_exante_awal": _roi(1.0),
+        "roi_exante_pada_impas": _roi(m_star),
+    }
+
+
 # --------------------------------------------------------------------------------------
 # Portfolio evaluation
 # --------------------------------------------------------------------------------------
